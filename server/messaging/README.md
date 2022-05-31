@@ -1,1 +1,0 @@
-Messaging/Emailing/Notification Server
