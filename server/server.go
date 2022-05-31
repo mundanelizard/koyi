@@ -1,7 +1,7 @@
 package main
 
 import "log"
-import "github.com/mundanelizard/koyi/server/auth/routers"
+import "github.com/mundanelizard/koyi/routers"
 
 func main() {
 	server := routers.SetUpServer()
