@@ -13,7 +13,9 @@
   },
   "scripts": {
     "start": "react-scripts start",
+    "build:bin": "react-scripts build && cpy ./build ../bin/client && rimraf ./build",
     "build": "react-scripts build",
+    "clean": "rimraf ../bin",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },
@@ -34,5 +36,9 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
+  },
+  "devDependencies": {
+    "cpy-cli": "^4.1.0",
+    "rimraf": "^3.0.2"
   }
 }
