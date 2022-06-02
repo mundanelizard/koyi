@@ -1,4 +1,4 @@
-package main
+package routers
 
 import (
 	"fmt"
@@ -63,13 +63,13 @@ func createMFARoutes(router *gin.Engine) {
 	group := router.Group("/mfa")
 
 	group.POST("/totp", noOperationHandler) // email and phone number
-	group.POST("/totp", noOperationHandler)
+	group.POST("/hmac-totp", noOperationHandler)
 	group.GET("/otp/verify", noOperationHandler)
-	group.GET("/totp/verify", noOperationHandler)
+	group.GET("/hmac-totp/verify", noOperationHandler)
 }
 
-func createSignUpInRoutes(router Groupable) {
-	group := router.Group("/who/login")
+func createSignUpRoutes(router Groupable) {
+	group := router.Group("/who/signup")
 
 	group.POST("/google", noOperationHandler)
 	group.POST("/apple", noOperationHandler)
@@ -104,12 +104,13 @@ func createAuthorizationRoutes(router *gin.Engine) {
 // createAuthenticationRoutes handles all the authentication request made in the application.
 func createAuthenticationRoutes(router Groupable) {
 	createLoginInRoutes(router)
-	createSignUpInRoutes(router)
+	createSignUpRoutes(router)
 	createGeneralUserRoutes(router)
 }
 
 // createAdminRoutes handles the application administration requests.
 func createAdminRoutes(router Groupable) {
+	// Add authorized domains feature
 	createAdminBaseRoutes(router)
 	createAdminSettingsRoutes(router)
 }
