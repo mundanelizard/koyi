@@ -3,6 +3,8 @@ package routers
 import (
 	"fmt"
 	"github.com/gin-gonic/gin"
+	"github.com/mundanelizard/koyi/server/handlers"
+	"github.com/mundanelizard/koyi/server/middlewares"
 	"net/http"
 )
 
@@ -45,21 +47,13 @@ func createAdminSettingsRoutes(router Groupable) {
 func createLoginInRoutes(router Groupable) {
 	group := router.Group("/who/login")
 
-	group.POST("/google", noOperationHandler)
-	group.POST("/apple", noOperationHandler)
-	group.POST("/email", noOperationHandler)
 	group.POST("/email/totp", noOperationHandler)
 	group.POST("/phone", noOperationHandler)
 	group.POST("/phone/totp", noOperationHandler)
-	group.POST("/anon", noOperationHandler)
-	group.POST("/meta", noOperationHandler)
-	group.POST("/twitter", noOperationHandler)
-	group.POST("/github", noOperationHandler)
-	group.POST("/gitlab", noOperationHandler)
 
 }
 
-func createMFARoutes(router *gin.Engine) {
+func createMFARoutes(router Groupable) {
 	group := router.Group("/mfa")
 
 	group.POST("/totp", noOperationHandler) // email and phone number
@@ -71,15 +65,8 @@ func createMFARoutes(router *gin.Engine) {
 func createSignUpRoutes(router Groupable) {
 	group := router.Group("/who/signup")
 
-	group.POST("/google", noOperationHandler)
-	group.POST("/apple", noOperationHandler)
-	group.POST("/email", noOperationHandler)
-	group.POST("/phone", noOperationHandler)
-	group.POST("/anon", noOperationHandler)
-	group.POST("/meta", noOperationHandler)
-	group.POST("/twitter", noOperationHandler)
-	group.POST("/github", noOperationHandler)
-	group.POST("/gitlab", noOperationHandler)
+	group.POST("/email", middlewares.ValidateEmailSignUp, handlers.EmailSignUpHandler)
+	group.POST("/phone", middlewares.ValidatePhoneNumberSignUp, handlers.PhoneNumberSignUpHandler)
 }
 
 func createGeneralUserRoutes(router Groupable) {
@@ -95,7 +82,7 @@ func createGeneralUserRoutes(router Groupable) {
 	group.DELETE("/", noOperationHandler)
 }
 
-func createAuthorizationRoutes(router *gin.Engine) {
+func createAuthorizationRoutes(router Groupable) {
 	group := router.Group("/what", noOperationHandler)
 	group.GET("/roles", noOperationHandler)
 	group.GET("/", noOperationHandler)
@@ -103,8 +90,8 @@ func createAuthorizationRoutes(router *gin.Engine) {
 
 // createAuthenticationRoutes handles all the authentication request made in the application.
 func createAuthenticationRoutes(router Groupable) {
-	createLoginInRoutes(router)
 	createSignUpRoutes(router)
+	createLoginInRoutes(router)
 	createGeneralUserRoutes(router)
 }
 
@@ -121,17 +108,22 @@ func noOperationHandler(context *gin.Context) {
 	context.AbortWithStatusJSON(http.StatusOK, map[string]string{"Ping": "Pong"})
 }
 
+func createVersion1Handlers(engine Groupable) {
+	router := engine.Group("v1")
+	createAuthenticationRoutes(router)
+	createAuthorizationRoutes(router)
+	createAdminRoutes(router)
+	createMFARoutes(router)
+}
+
 // SetUpServer sets up the server for handling all post request.
 func SetUpServer() *gin.Engine {
 	/**
 	- Keep user action logs.
 	*/
-	router := gin.Default()
+	engine := gin.Default()
 
-	createAuthenticationRoutes(router)
-	createAuthorizationRoutes(router)
-	createAdminRoutes(router)
-	createMFARoutes(router)
+	createVersion1Handlers(engine)
 
-	return router
+	return engine
 }

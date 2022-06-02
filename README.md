@@ -27,3 +27,11 @@ Yeah, you can. You can help with bugs, docs, tests and general issues.
 
 
 
+## Do I plan to add in the future?
+- Google
+- Apple
+- Anonymous
+- Facebook
+- Twitter
+- GitHub
+- GitLab
