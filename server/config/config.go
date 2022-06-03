@@ -16,4 +16,7 @@ const (
 	RefreshTokenDuration     = time.Hour * time.Duration(20) // 20 hours
 	AccessTokenSecretKey     = "super-secret-key"
 	RefreshTokenSecretKey    = "super-duper-secret-key"
+	MongoUri                 = "mongodb://localhost:27017/"
+	AverageServerTimeout     = 20 * time.Second
+	UserDatabaseName         = "users"
 )

@@ -47,19 +47,16 @@ func createAdminSettingsRoutes(router Groupable) {
 func createLoginInRoutes(router Groupable) {
 	group := router.Group("/who/login")
 
-	group.POST("/email/totp", noOperationHandler)
+	group.POST("/email/totp", noOperationHandler) // logs the user in using email and otp
 	group.POST("/phone", noOperationHandler)
-	group.POST("/phone/totp", noOperationHandler)
-
+	group.POST("/phone/totp", noOperationHandler) // logs the user in using phone number and otp
 }
 
 func createMFARoutes(router Groupable) {
 	group := router.Group("/mfa")
 
 	group.POST("/totp", noOperationHandler) // email and phone number
-	group.POST("/hmac-totp", noOperationHandler)
 	group.GET("/otp/verify", noOperationHandler)
-	group.GET("/hmac-totp/verify", noOperationHandler)
 }
 
 func createSignUpRoutes(router Groupable) {

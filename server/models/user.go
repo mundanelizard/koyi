@@ -6,8 +6,13 @@ import (
 	"github.com/golang-jwt/jwt"
 	"github.com/google/uuid"
 	"github.com/mundanelizard/koyi/server/config"
+	"github.com/mundanelizard/koyi/server/helpers"
 	"log"
 	"time"
+)
+
+const (
+	userCollectionName = "users"
 )
 
 type User struct {
@@ -29,18 +34,20 @@ type UserClaim struct {
 	jwt.StandardClaims
 }
 
-func Count(interface{}) (int8, error) {
-	return 0, nil
+func Count(ctx *context.Context, filter interface{}) (int64, error) {
+	collection := helpers.GetCollection(config.UserDatabaseName, userCollectionName)
+	count, err := collection.CountDocuments(*ctx, filter)
+	return count, err
 }
 
-func (user *User) Exists() (bool, error) {
-	var count int8
+func (user *User) Exists(ctx *context.Context) (bool, error) {
+	var count int64
 	var err error
 
 	if user.Email != nil {
-		count, err = Count(map[string]string{"email": *user.Email})
+		count, err = Count(ctx, map[string]string{"email": *user.Email})
 	} else if user.PhoneNumber != nil {
-		count, err = Count(map[string]string{"email": *user.Email})
+		count, err = Count(ctx, map[string]string{"email": *user.Email})
 	} else {
 		return false, errors.New("empty user object")
 	}
@@ -66,7 +73,7 @@ func (user *User) FillDefaults() {
 }
 
 func (user *User) Create(ctx *context.Context) error {
-	exists, err := user.Exists()
+	exists, err := user.Exists(ctx)
 
 	if err != nil {
 		return err
@@ -77,8 +84,20 @@ func (user *User) Create(ctx *context.Context) error {
 	}
 
 	user.FillDefaults()
+	collection := helpers.GetCollection(config.UserDatabaseName, userCollectionName)
 
-	return errors.New("test Error")
+	_, err = collection.InsertOne(*ctx, user)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (user *User) PersistJWTs(accessToken, refreshToken *string) error {
+	// store the JWT in the
+	return nil
 }
 
 func (user *User) GenerateJWTs() (*string, *string, error) {
@@ -94,7 +113,7 @@ func (user *User) GenerateJWTs() (*string, *string, error) {
 }
 
 func (user *User) CreateClaim(duration time.Duration, secret string) (*string, error) {
-	accessClaims := &UserClaim{
+	claims := &UserClaim{
 		ID:          user.ID,
 		Email:       user.Email,
 		PhoneNumber: user.PhoneNumber,
@@ -105,8 +124,8 @@ func (user *User) CreateClaim(duration time.Duration, secret string) (*string, e
 		},
 	}
 
-	accessToken, err := jwt.NewWithClaims(jwt.SigningMethodHS256, accessClaims).
+	token, err := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).
 		SignedString([]byte(secret))
 
-	return &accessToken, err
+	return &token, err
 }
