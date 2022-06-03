@@ -19,12 +19,6 @@ func EmailSignUpHandler(c *gin.Context) {
 		Password: helpers.HashString(password),
 	}
 
-	metadata, ok := c.Get("metadata")
-
-	if ok {
-		user.Metadata = &metadata
-	}
-
 	CreateUserHandler(c, user)
 }
 
@@ -37,19 +31,18 @@ func PhoneNumberSignUpHandler(c *gin.Context) {
 		Password:    helpers.HashString(password),
 	}
 
+	CreateUserHandler(c, user)
+}
+
+func CreateUserHandler(c *gin.Context, user *models.User) {
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 100)
+	defer cancel()
+
 	metadata, ok := c.Get("metadata")
 
 	if ok {
 		user.Metadata = &metadata
 	}
-
-	CreateUserHandler(c, user)
-}
-
-func CreateUserHandler(c *gin.Context, user *models.User) {
-	device := helpers.ExtractDeviceDetailsFromContext(c)
-	ctx, cancel := context.WithTimeout(c.Request.Context(), 100)
-	defer cancel()
 
 	err := user.Create(&ctx)
 
@@ -58,6 +51,7 @@ func CreateUserHandler(c *gin.Context, user *models.User) {
 		return
 	}
 
+	device := helpers.ExtractDeviceDetailsFromContext(c)
 	device.UserId = user.ID
 	err = device.Create(&ctx)
 
@@ -65,21 +59,27 @@ func CreateUserHandler(c *gin.Context, user *models.User) {
 		log.Println("CREATE-DEVICE-ERROR: ", err)
 	}
 
-	accessToken, refreshToken, err := user.GenerateTokensAndPersistClaims(&ctx, device)
+	err = models.CreateVerificationIntent(&ctx, user)
 
 	if err != nil {
-		log.Println("GENERATE-JWT-ERROR: ", err)
+		log.Println("CREATE-VERIFICATION-INTENT-ERROR: ", err)
+	}
+
+	claims, err := user.CreateClaims(&ctx, device)
+
+	if err != nil {
+		log.Println("GENERATE--JWT-ERROR: ", err)
 	}
 
 	response := map[string]interface{}{
-		"user":         user,
-		"accessToken":  accessToken,
-		"refreshToken": refreshToken,
+		"user":    user,
+		"token":   claims.AccessToken,
+		"success": true,
 	}
 
 	c.SetCookie(
 		"authentication",
-		*refreshToken,
+		*claims.RefreshToken,
 		config.RefreshTokenCookieMaxAge,
 		"/v1/who/refresh",
 		config.ServerDomain,

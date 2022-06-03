@@ -82,29 +82,6 @@ func (user *User) FillDefaults() {
 	user.UpdatedAt = time.Now()
 }
 
-func (user *User) createHistory() {
-	ctx, cancel := context.WithTimeout(context.Background(), config.BackgroundTaskTimeout)
-	defer cancel()
-
-	eh := EmailHistory{
-		UserId: user.ID,
-		Email:  user.Email,
-	}
-	eh.Create(&ctx)
-
-	ph := PasswordHistory{
-		UserId:   user.ID,
-		Password: user.Email,
-	}
-	ph.Create(&ctx)
-
-	pnh := PhoneNumberHistory{
-		UserId:      user.ID,
-		PhoneNumber: user.PhoneNumber,
-	}
-	pnh.Create(&ctx)
-}
-
 func (user *User) Create(ctx *context.Context) error {
 	exists, err := user.Exists(ctx)
 
@@ -130,33 +107,36 @@ func (user *User) Create(ctx *context.Context) error {
 	return nil
 }
 
-func (user *User) GenerateTokensAndPersistClaims(ctx *context.Context, device *Device) (*string, *string, error) {
+func (user *User) CreateClaims(ctx *context.Context, device *Device) (*TokenClaims, error) {
 	accessClaim, accessToken, err := user.CreateClaim(config.AccessTokenDuration, config.AccessTokenSecretKey)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	refreshClaim, refreshToken, err := user.CreateClaim(config.RefreshTokenDuration, config.RefreshTokenSecretKey)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	claims := &TokenClaims{
 		CreatedAt:    time.Now(),
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
+
+		// todo => remove these, they may be redundant.
 		RefreshClaim: refreshClaim,
 		AccessClaim:  accessClaim,
-		DeviceId:     device.ID,
+
+		DeviceId: device.ID,
 	}
 
 	err = claims.Persist(ctx)
 
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	return accessToken, refreshToken, nil
+	return claims, nil
 }
 
 func (user *User) CreateClaim(duration time.Duration, secret string) (*UserClaim, *string, error) {
@@ -181,6 +161,29 @@ func (user *User) CreateClaim(duration time.Duration, secret string) (*UserClaim
 		SignedString([]byte(secret))
 
 	return claims, &token, err
+}
+
+func (user *User) createHistory() {
+	ctx, cancel := context.WithTimeout(context.Background(), config.BackgroundTaskTimeout)
+	defer cancel()
+
+	eh := EmailHistory{
+		UserId: user.ID,
+		Email:  user.Email,
+	}
+	eh.Create(&ctx)
+
+	ph := PasswordHistory{
+		UserId:   user.ID,
+		Password: user.Email,
+	}
+	ph.Create(&ctx)
+
+	pnh := PhoneNumberHistory{
+		UserId:      user.ID,
+		PhoneNumber: user.PhoneNumber,
+	}
+	pnh.Create(&ctx)
 }
 
 func (tc *TokenClaims) Persist(ctx *context.Context) error {
