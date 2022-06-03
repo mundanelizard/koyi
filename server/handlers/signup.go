@@ -6,6 +6,7 @@ import (
 	"github.com/mundanelizard/koyi/server/config"
 	"github.com/mundanelizard/koyi/server/helpers"
 	"github.com/mundanelizard/koyi/server/models"
+	"log"
 	"net/http"
 )
 
@@ -46,6 +47,7 @@ func PhoneNumberSignUpHandler(c *gin.Context) {
 }
 
 func CreateUserHandler(c *gin.Context, user *models.User) {
+	device := helpers.ExtractDeviceDetailsFromContext(c)
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 100)
 	defer cancel()
 
@@ -56,7 +58,18 @@ func CreateUserHandler(c *gin.Context, user *models.User) {
 		return
 	}
 
-	accessToken, refreshToken, err := user.GenerateJWTs()
+	device.UserId = user.ID
+	err = device.Create(&ctx)
+
+	if err != nil {
+		log.Println("CREATE-DEVICE-ERROR: ", err)
+	}
+
+	accessToken, refreshToken, err := user.GenerateTokensAndPersistClaims(&ctx, device)
+
+	if err != nil {
+		log.Println("GENERATE-JWT-ERROR: ", err)
+	}
 
 	response := map[string]interface{}{
 		"user":         user,

@@ -13,10 +13,10 @@ var MongoClient *mongo.Client
 var collectionCache map[string]map[string]*mongo.Collection
 
 func init() {
-	MongoClient = CreateDbInstance(config.MongoUri)
+	MongoClient = connectDatabase(config.MongoUri)
 }
 
-func CreateDbInstance(uri string) *mongo.Client {
+func connectDatabase(uri string) *mongo.Client {
 	client, err := mongo.NewClient(options.Client().ApplyURI(uri))
 	if err != nil {
 		log.Fatalln(err)

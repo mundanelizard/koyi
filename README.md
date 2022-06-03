@@ -15,6 +15,10 @@ so I can't extend the solutions for niche projects
 ## Why don't you just use blah blah, it's opensource?
 The authors of these solutions are really smart, which means I have to spend a lot of time trying to understand the codebase.
 
+## Why is your go code so terrible?
+This is my greenfield large scale project using go.
+
+
 ## What this project isn't?
 This project isn't a solution made for everyone, you are probably better off with firebase, AuthO or other
 opensource projects.

@@ -19,4 +19,7 @@ const (
 	MongoUri                 = "mongodb://localhost:27017/"
 	AverageServerTimeout     = 20 * time.Second
 	UserDatabaseName         = "users"
+	BackgroundTaskTimeout    = 60 * time.Second
+	JWTIssuerName            = "koyi"
+	JWTAudience              = "koyi-client"
 )

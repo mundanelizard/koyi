@@ -7,13 +7,23 @@ import (
 	"github.com/google/uuid"
 	"github.com/mundanelizard/koyi/server/config"
 	"github.com/mundanelizard/koyi/server/helpers"
-	"log"
 	"time"
 )
 
 const (
-	userCollectionName = "users"
+	userCollectionName        = "users"
+	tokenClaimsCollectionName = "user-tokens"
 )
+
+type TokenClaims struct {
+	ID           *string    `json:"id"`
+	DeviceId     *string    `json:"deviceId"`
+	AccessToken  *string    `json:"accessToken"`
+	RefreshToken *string    `json:"refreshToken"`
+	RefreshClaim *UserClaim `json:"refreshClaim"`
+	AccessClaim  *UserClaim `json:"accessClaim"`
+	CreatedAt    time.Time  `json:"createdAt"`
+}
 
 type User struct {
 	Email       *string      `json:"email"`
@@ -72,6 +82,29 @@ func (user *User) FillDefaults() {
 	user.UpdatedAt = time.Now()
 }
 
+func (user *User) createHistory() {
+	ctx, cancel := context.WithTimeout(context.Background(), config.BackgroundTaskTimeout)
+	defer cancel()
+
+	eh := EmailHistory{
+		UserId: user.ID,
+		Email:  user.Email,
+	}
+	eh.Create(&ctx)
+
+	ph := PasswordHistory{
+		UserId:   user.ID,
+		Password: user.Email,
+	}
+	ph.Create(&ctx)
+
+	pnh := PhoneNumberHistory{
+		UserId:      user.ID,
+		PhoneNumber: user.PhoneNumber,
+	}
+	pnh.Create(&ctx)
+}
+
 func (user *User) Create(ctx *context.Context) error {
 	exists, err := user.Exists(ctx)
 
@@ -92,32 +125,52 @@ func (user *User) Create(ctx *context.Context) error {
 		return err
 	}
 
+	go user.createHistory()
+
 	return nil
 }
 
-func (user *User) PersistJWTs(accessToken, refreshToken *string) error {
-	// store the JWT in the
-	return nil
-}
+func (user *User) GenerateTokensAndPersistClaims(ctx *context.Context, device *Device) (*string, *string, error) {
+	accessClaim, accessToken, err := user.CreateClaim(config.AccessTokenDuration, config.AccessTokenSecretKey)
+	if err != nil {
+		return nil, nil, err
+	}
 
-func (user *User) GenerateJWTs() (*string, *string, error) {
-	accessToken, err := user.CreateClaim(config.AccessTokenDuration, config.AccessTokenSecretKey)
-	refreshToken, err := user.CreateClaim(config.RefreshTokenDuration, config.RefreshTokenSecretKey)
+	refreshClaim, refreshToken, err := user.CreateClaim(config.RefreshTokenDuration, config.RefreshTokenSecretKey)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	claims := &TokenClaims{
+		CreatedAt:    time.Now(),
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+		RefreshClaim: refreshClaim,
+		AccessClaim:  accessClaim,
+		DeviceId:     device.ID,
+	}
+
+	err = claims.Persist(ctx)
 
 	if err != nil {
-		log.Fatal(err)
 		return nil, nil, err
 	}
 
 	return accessToken, refreshToken, nil
 }
 
-func (user *User) CreateClaim(duration time.Duration, secret string) (*string, error) {
+func (user *User) CreateClaim(duration time.Duration, secret string) (*UserClaim, *string, error) {
 	claims := &UserClaim{
 		ID:          user.ID,
 		Email:       user.Email,
 		PhoneNumber: user.PhoneNumber,
 		StandardClaims: jwt.StandardClaims{
+			Issuer:   config.JWTIssuerName,
+			IssuedAt: time.Now().Unix(),
+			Audience: config.JWTAudience,
+			Id:       uuid.New().String(),
+			// todo => NotBefore "nbf"
+			// todo => Subject   "sub"
 			// Stays valid for 10 hours
 			ExpiresAt: time.Now().Local().
 				Add(duration).Unix(),
@@ -127,5 +180,15 @@ func (user *User) CreateClaim(duration time.Duration, secret string) (*string, e
 	token, err := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).
 		SignedString([]byte(secret))
 
-	return &token, err
+	return claims, &token, err
+}
+
+func (tc *TokenClaims) Persist(ctx *context.Context) error {
+	id := uuid.New().String()
+	tc.ID = &id
+
+	collection := helpers.GetCollection(config.UserDatabaseName, tokenClaimsCollectionName)
+	_, err := collection.InsertOne(*ctx, tc)
+
+	return err
 }
