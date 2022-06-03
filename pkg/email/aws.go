@@ -4,6 +4,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ses"
+	"github.com/mundanelizard/koyi/server/config"
 )
 
 const (
@@ -12,7 +13,6 @@ const (
 
 type Email struct {
 	To       string
-	From     string
 	Subject  string
 	BodyText *string
 	BodyHTML *string
@@ -25,7 +25,7 @@ var sess, err = session.NewSession(&aws.Config{
 // Create an SES session.
 var svc = ses.New(sess)
 
-func (email *Email) Send() (bool, error) {
+func (email *Email) Send() error {
 	// Assemble the email.
 	input := &ses.SendEmailInput{
 		Destination: &ses.Destination{
@@ -50,7 +50,7 @@ func (email *Email) Send() (bool, error) {
 				Data:    aws.String(email.Subject),
 			},
 		},
-		Source: aws.String(email.From),
+		Source: aws.String(config.EmailAddress),
 		// Uncomment to use a configuration set
 		//ConfigurationSetName: aws.String(ConfigurationSet),
 	}
@@ -59,8 +59,8 @@ func (email *Email) Send() (bool, error) {
 	_, err = svc.SendEmail(input)
 
 	if err != nil {
-		return false, err
+		return err
 	}
 
-	return true, nil
+	return nil
 }

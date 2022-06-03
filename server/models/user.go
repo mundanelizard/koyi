@@ -5,6 +5,7 @@ import (
 	"errors"
 	"github.com/golang-jwt/jwt"
 	"github.com/google/uuid"
+	"github.com/mundanelizard/koyi/pkg/email"
 	"github.com/mundanelizard/koyi/server/config"
 	"github.com/mundanelizard/koyi/server/helpers"
 	"time"
@@ -194,4 +195,27 @@ func (tc *TokenClaims) Persist(ctx *context.Context) error {
 	_, err := collection.InsertOne(*ctx, tc)
 
 	return err
+}
+
+func (user *User) SendEmail(intent *Intent) error {
+	switch intent.Action {
+	case VerifyEmailIntent:
+		return user.sendEmail(intent)
+	case VerifyPhoneNumberIntent:
+		return user.sendEmail(intent)
+	}
+	return errors.New("unable to find email intent")
+}
+
+func (user *User) sendEmail(intent *Intent) error {
+	// todo => compile template file
+	subject, text, html := helpers.GetEmailDetails(intent.Action)
+
+	e := &email.Email{
+		Subject:  subject,
+		BodyText: text,
+		BodyHTML: html,
+	}
+
+	return e.Send()
 }

@@ -59,11 +59,13 @@ func CreateUserHandler(c *gin.Context, user *models.User) {
 		log.Println("CREATE-DEVICE-ERROR: ", err)
 	}
 
-	err = models.CreateVerificationIntent(&ctx, user)
+	intent, err := models.CreateIntent(&ctx, user, getVerificationIntentType(user))
 
 	if err != nil {
 		log.Println("CREATE-VERIFICATION-INTENT-ERROR: ", err)
 	}
+
+	go user.SendEmail(intent)
 
 	claims, err := user.CreateClaims(&ctx, device)
 
@@ -87,4 +89,15 @@ func CreateUserHandler(c *gin.Context, user *models.User) {
 		true)
 
 	c.AbortWithStatusJSON(http.StatusCreated, response)
+}
+
+func getVerificationIntentType(user *models.User) string {
+	switch {
+	case user.Email != nil:
+		return models.VerifyEmailIntent
+	case user.PhoneNumber != nil:
+		return models.VerifyPhoneNumberIntent
+	}
+
+	return models.VerifyEmailIntent
 }
