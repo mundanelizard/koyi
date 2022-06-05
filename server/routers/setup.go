@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/mundanelizard/koyi/server/handlers"
-	"github.com/mundanelizard/koyi/server/middlewares"
+	"github.com/mundanelizard/koyi/server/handlers/middlewares"
 	"net/http"
 )
 
