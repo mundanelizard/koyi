@@ -23,12 +23,16 @@ func EmailSignUpHandler(c *gin.Context) {
 }
 
 func PhoneNumberSignUpHandler(c *gin.Context) {
-	phoneNumber := c.GetString("phoneNumber")
+	countryCode := c.GetString("countryCode")
+	subscriberNumber := c.GetString("subscriberNumber")
 	password := c.GetString("password")
 
 	user := &models.User{
-		PhoneNumber: &phoneNumber,
-		Password:    helpers.HashString(password),
+		PhoneNumber: &models.PhoneNumber{
+			CountryCode:      countryCode,
+			SubscriberNumber: subscriberNumber,
+		},
+		Password: helpers.HashString(password),
 	}
 
 	CreateUserHandler(c, user)
@@ -44,7 +48,7 @@ func CreateUserHandler(c *gin.Context, user *models.User) {
 		user.Metadata = &metadata
 	}
 
-	err := user.Create(&ctx)
+	err := user.Create(ctx)
 
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{})
@@ -53,25 +57,19 @@ func CreateUserHandler(c *gin.Context, user *models.User) {
 
 	device := helpers.ExtractDeviceDetailsFromContext(c)
 	device.UserId = user.ID
-	err = device.Create(&ctx)
+	err = device.Create(ctx)
 
 	if err != nil {
 		log.Println("CREATE-DEVICE-ERROR: ", err)
 	}
 
-	intent, err := models.CreateIntent(&ctx, user, getVerificationIntentType(user))
-
-	if err != nil {
-		log.Println("CREATE-VERIFICATION-INTENT-ERROR: ", err)
-	}
-
-	go user.SendEmail(intent)
-
-	claims, err := user.CreateClaims(&ctx, device)
+	claims, err := user.CreateClaims(ctx, device)
 
 	if err != nil {
 		log.Println("GENERATE--JWT-ERROR: ", err)
 	}
+
+	go SendVerificationEmail(ctx, user)
 
 	response := map[string]interface{}{
 		"user":    user,
@@ -91,6 +89,20 @@ func CreateUserHandler(c *gin.Context, user *models.User) {
 	c.AbortWithStatusJSON(http.StatusCreated, response)
 }
 
+func SendVerificationEmail(ctx context.Context, user *models.User) {
+	intent, err := models.CreateIntent(ctx, user, getVerificationIntentType(user))
+
+	if err != nil {
+		log.Println("CREATE-VERIFICATION-INTENT-ERROR: ", err)
+	}
+
+	err = user.SendEmail(ctx, intent)
+
+	if err != nil {
+		log.Println("SEND-VERIFICATION-EMAIL-ERROR: ", err)
+	}
+}
+
 func getVerificationIntentType(user *models.User) string {
 	switch {
 	case user.Email != nil:
@@ -98,6 +110,5 @@ func getVerificationIntentType(user *models.User) string {
 	case user.PhoneNumber != nil:
 		return models.VerifyPhoneNumberIntent
 	}
-
 	return models.VerifyEmailIntent
 }

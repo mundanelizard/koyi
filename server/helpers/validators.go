@@ -52,18 +52,14 @@ func IsValidPassword(password string) error {
 	return nil
 }
 
-// IsValidPhoneNumber validates phone number to match a simplified version of Nigeria phone number spec.
-func IsValidPhoneNumber(phoneNumber string) error {
-	firstNumber := phoneNumber[0]
+// IsValidSubscriberNumber validates subscriber ar https://en.wikipedia.org/wiki/E.164
+func IsValidSubscriberNumber(sn string) bool {
+	length := len(sn)
+	return length > 3 && length <= 13
+}
 
-	// this only works for west african phone numbers.
-	if firstNumber != '0' {
-		return errors.New("invalid phone number")
-	}
-
-	if len(phoneNumber) != 11 {
-		return errors.New("invalid phone number")
-	}
-
-	return nil
+// IsValidCountryCode
+func IsValidCountryCode(cc string) bool {
+	length := len(cc)
+	return length > 1 && length <= 3
 }

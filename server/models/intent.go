@@ -30,7 +30,7 @@ type Intent struct {
 	Fulfilled bool `json:"fulfilled"`
 }
 
-func CreateIntent(ctx *context.Context, user *User, action string) (*Intent, error) {
+func CreateIntent(ctx context.Context, user *User, action string) (*Intent, error) {
 	actionCode := "123456"
 	var err error
 
@@ -48,12 +48,12 @@ func CreateIntent(ctx *context.Context, user *User, action string) (*Intent, err
 	return intent, intent.Create(ctx)
 }
 
-func (i *Intent) Create(ctx *context.Context) error {
+func (i *Intent) Create(ctx context.Context) error {
 	i.ID = uuid.New().String()
 	i.Fulfilled = false
 
 	collection := helpers.GetCollection(config.UserDatabaseName, intentsCollectionName)
-	_, err := collection.InsertOne(*ctx, i)
+	_, err := collection.InsertOne(ctx, i)
 
 	return err
 }

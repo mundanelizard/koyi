@@ -30,10 +30,10 @@ type EmailHistory struct {
 }
 
 type PhoneNumberHistory struct {
-	ID          *string   `json:"id"`
-	UserId      *string   `json:"userId"`
-	PhoneNumber *string   `json:"password"`
-	CreatedAt   time.Time `json:"createdAt"`
+	ID          *string      `json:"id"`
+	UserId      *string      `json:"userId"`
+	PhoneNumber *PhoneNumber `json:"phoneNumber"`
+	CreatedAt   time.Time    `json:"createdAt"`
 }
 
 func (ph *PasswordHistory) FillDefaults() {
@@ -42,11 +42,11 @@ func (ph *PasswordHistory) FillDefaults() {
 	ph.CreatedAt = time.Now()
 }
 
-func (ph *PasswordHistory) Create(ctx *context.Context) {
+func (ph *PasswordHistory) Create(ctx context.Context) {
 	ph.FillDefaults()
 
 	collection := helpers.GetCollection(config.UserDatabaseName, passwordHistoryCollectionName)
-	_, err := collection.InsertOne(*ctx, ph)
+	_, err := collection.InsertOne(ctx, ph)
 
 	if err != nil {
 		log.Println(err)
@@ -59,11 +59,11 @@ func (eh *EmailHistory) FillDefaults() {
 	eh.CreatedAt = time.Now()
 }
 
-func (eh *EmailHistory) Create(ctx *context.Context) {
+func (eh *EmailHistory) Create(ctx context.Context) {
 	eh.FillDefaults()
 
 	collection := helpers.GetCollection(config.UserDatabaseName, emailHistoryCollectionName)
-	_, err := collection.InsertOne(*ctx, eh)
+	_, err := collection.InsertOne(ctx, eh)
 
 	if err != nil {
 		log.Println(err)
@@ -76,11 +76,11 @@ func (pnh *PhoneNumberHistory) FillDefaults() {
 	pnh.CreatedAt = time.Now()
 }
 
-func (pnh *PhoneNumberHistory) Create(ctx *context.Context) {
+func (pnh *PhoneNumberHistory) Create(ctx context.Context) {
 	pnh.FillDefaults()
 
 	collection := helpers.GetCollection(config.UserDatabaseName, phoneNumberHistoryCollectionName)
-	_, err := collection.InsertOne(*ctx, pnh)
+	_, err := collection.InsertOne(ctx, pnh)
 
 	if err != nil {
 		log.Println(err)

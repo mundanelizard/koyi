@@ -48,9 +48,15 @@ func ValidatePhoneNumberSignUp(c *gin.Context) {
 		return
 	}
 
-	phoneNumber, ok := details["phoneNumber"].(string)
+	countryCode, ok := details["countryCode"].(string)
 
-	if ok && helpers.IsValidPhoneNumber(phoneNumber) != nil {
+	if ok && helpers.IsValidCountryCode(countryCode) {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{})
+	}
+
+	subscriberNumber, ok := details["subscriberNumber"].(string)
+
+	if ok && helpers.IsValidSubscriberNumber(subscriberNumber) {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{})
 	}
 
@@ -66,7 +72,8 @@ func ValidatePhoneNumberSignUp(c *gin.Context) {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{})
 	}
 
-	c.Set("email", phoneNumber)
+	c.Set("subscriberNumber", subscriberNumber)
+	c.Set("countryCode", countryCode)
 	c.Set("password", password)
 	c.Set("metadata", details["metadata"])
 }

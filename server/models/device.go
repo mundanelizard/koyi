@@ -18,8 +18,8 @@ type Device struct {
 	CreatedAt time.Time `json:"createdAt"`
 }
 
-func (device *Device) Create(ctx *context.Context) error {
+func (device *Device) Create(ctx context.Context) error {
 	collection := helpers.GetCollection(config.UserDatabaseName, deviceCollectionName)
-	_, err := collection.InsertOne(*ctx, collection)
+	_, err := collection.InsertOne(ctx, collection)
 	return err
 }

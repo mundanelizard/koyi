@@ -26,9 +26,16 @@ type TokenClaims struct {
 	CreatedAt    time.Time  `json:"createdAt"`
 }
 
+// PhoneNumber is based on the spec
+// Reference https://en.wikipedia.org/wiki/E.164
+type PhoneNumber struct {
+	CountryCode      string `json:"countryCode"` // min 1 max 12
+	SubscriberNumber string `json:"number"`      // max of 12 digits
+}
+
 type User struct {
 	Email       *string      `json:"email"`
-	PhoneNumber *string      `json:"phoneNumber"`
+	PhoneNumber *PhoneNumber `json:"phoneNumber"`
 	Password    *string      `json:"-" bson:"password"`
 	Metadata    *interface{} `json:"metadata"`
 	ID          *string      `json:"id"`
@@ -39,19 +46,19 @@ type User struct {
 }
 
 type UserClaim struct {
-	Email       *string `json:"email"`
-	PhoneNumber *string `json:"phoneNumber"`
-	ID          *string `json:"id"`
+	Email       *string      `json:"email"`
+	PhoneNumber *PhoneNumber `json:"phoneNumber"`
+	ID          *string      `json:"id"`
 	jwt.StandardClaims
 }
 
-func Count(ctx *context.Context, filter interface{}) (int64, error) {
+func Count(ctx context.Context, filter interface{}) (int64, error) {
 	collection := helpers.GetCollection(config.UserDatabaseName, userCollectionName)
-	count, err := collection.CountDocuments(*ctx, filter)
+	count, err := collection.CountDocuments(ctx, filter)
 	return count, err
 }
 
-func (user *User) Exists(ctx *context.Context) (bool, error) {
+func (user *User) Exists(ctx context.Context) (bool, error) {
 	var count int64
 	var err error
 
@@ -83,7 +90,7 @@ func (user *User) FillDefaults() {
 	user.UpdatedAt = time.Now()
 }
 
-func (user *User) Create(ctx *context.Context) error {
+func (user *User) Create(ctx context.Context) error {
 	exists, err := user.Exists(ctx)
 
 	if err != nil {
@@ -97,7 +104,7 @@ func (user *User) Create(ctx *context.Context) error {
 	user.FillDefaults()
 	collection := helpers.GetCollection(config.UserDatabaseName, userCollectionName)
 
-	_, err = collection.InsertOne(*ctx, user)
+	_, err = collection.InsertOne(ctx, user)
 
 	if err != nil {
 		return err
@@ -108,7 +115,7 @@ func (user *User) Create(ctx *context.Context) error {
 	return nil
 }
 
-func (user *User) CreateClaims(ctx *context.Context, device *Device) (*TokenClaims, error) {
+func (user *User) CreateClaims(ctx context.Context, device *Device) (*TokenClaims, error) {
 	accessClaim, accessToken, err := user.CreateClaim(config.AccessTokenDuration, config.AccessTokenSecretKey)
 	if err != nil {
 		return nil, err
@@ -172,38 +179,41 @@ func (user *User) createHistory() {
 		UserId: user.ID,
 		Email:  user.Email,
 	}
-	eh.Create(&ctx)
+	eh.Create(ctx)
 
 	ph := PasswordHistory{
 		UserId:   user.ID,
 		Password: user.Email,
 	}
-	ph.Create(&ctx)
+	ph.Create(ctx)
 
 	pnh := PhoneNumberHistory{
 		UserId:      user.ID,
 		PhoneNumber: user.PhoneNumber,
 	}
-	pnh.Create(&ctx)
+	pnh.Create(ctx)
 }
 
-func (tc *TokenClaims) Persist(ctx *context.Context) error {
+func (tc *TokenClaims) Persist(ctx context.Context) error {
 	id := uuid.New().String()
 	tc.ID = &id
 
 	collection := helpers.GetCollection(config.UserDatabaseName, tokenClaimsCollectionName)
-	_, err := collection.InsertOne(*ctx, tc)
+	_, err := collection.InsertOne(ctx, tc)
 
 	return err
 }
 
-func (user *User) SendEmail(intent *Intent) error {
+func (user *User) SendEmail(ctx context.Context, intent *Intent) error {
+	defer ctx.Done()
+
 	switch intent.Action {
 	case VerifyEmailIntent:
 		return user.sendEmail(intent)
 	case VerifyPhoneNumberIntent:
 		return user.sendEmail(intent)
 	}
+
 	return errors.New("unable to find email intent")
 }
 
