@@ -57,3 +57,13 @@ func (i *Intent) Create(ctx context.Context) error {
 
 	return err
 }
+
+func getVerificationIntentType(user *User) string {
+	switch {
+	case user.Email != nil:
+		return VerifyEmailIntent
+	case user.PhoneNumber != nil:
+		return VerifyPhoneNumberIntent
+	}
+	return VerifyEmailIntent
+}

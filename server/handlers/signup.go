@@ -69,7 +69,7 @@ func CreateUserHandler(c *gin.Context, user *models.User) {
 		log.Println("GENERATE--JWT-ERROR: ", err)
 	}
 
-	go SendVerificationEmail(ctx, user)
+	go user.SendVerificationMessage(ctx)
 
 	response := map[string]interface{}{
 		"user":    user,
@@ -87,28 +87,4 @@ func CreateUserHandler(c *gin.Context, user *models.User) {
 		true)
 
 	c.AbortWithStatusJSON(http.StatusCreated, response)
-}
-
-func SendVerificationEmail(ctx context.Context, user *models.User) {
-	intent, err := models.CreateIntent(ctx, user, getVerificationIntentType(user))
-
-	if err != nil {
-		log.Println("CREATE-VERIFICATION-INTENT-ERROR: ", err)
-	}
-
-	err = user.SendEmail(ctx, intent)
-
-	if err != nil {
-		log.Println("SEND-VERIFICATION-EMAIL-ERROR: ", err)
-	}
-}
-
-func getVerificationIntentType(user *models.User) string {
-	switch {
-	case user.Email != nil:
-		return models.VerifyEmailIntent
-	case user.PhoneNumber != nil:
-		return models.VerifyPhoneNumberIntent
-	}
-	return models.VerifyEmailIntent
 }

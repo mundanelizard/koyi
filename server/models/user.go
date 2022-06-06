@@ -3,11 +3,12 @@ package models
 import (
 	"context"
 	"errors"
-	"github.com/golang-jwt/jwt"
 	"github.com/google/uuid"
 	"github.com/mundanelizard/koyi/pkg/email"
 	"github.com/mundanelizard/koyi/server/config"
 	"github.com/mundanelizard/koyi/server/helpers"
+	"go.mongodb.org/mongo-driver/bson"
+	"log"
 	"time"
 )
 
@@ -15,23 +16,6 @@ const (
 	userCollectionName        = "users"
 	tokenClaimsCollectionName = "user-tokens"
 )
-
-type TokenClaims struct {
-	ID           *string    `json:"id"`
-	DeviceId     *string    `json:"deviceId"`
-	AccessToken  *string    `json:"accessToken"`
-	RefreshToken *string    `json:"refreshToken"`
-	RefreshClaim *UserClaim `json:"refreshClaim"`
-	AccessClaim  *UserClaim `json:"accessClaim"`
-	CreatedAt    time.Time  `json:"createdAt"`
-}
-
-// PhoneNumber is based on the spec
-// Reference https://en.wikipedia.org/wiki/E.164
-type PhoneNumber struct {
-	CountryCode      string `json:"countryCode"` // min 1 max 12
-	SubscriberNumber string `json:"number"`      // max of 12 digits
-}
 
 type User struct {
 	Email       *string      `json:"email"`
@@ -45,53 +29,14 @@ type User struct {
 	UpdatedAt   time.Time    `json:"updatedAt"`
 }
 
-type UserClaim struct {
-	Email       *string      `json:"email"`
-	PhoneNumber *PhoneNumber `json:"phoneNumber"`
-	ID          *string      `json:"id"`
-	jwt.StandardClaims
-}
-
 func Count(ctx context.Context, filter interface{}) (int64, error) {
 	collection := helpers.GetCollection(config.UserDatabaseName, userCollectionName)
 	count, err := collection.CountDocuments(ctx, filter)
 	return count, err
 }
 
-func (user *User) Exists(ctx context.Context) (bool, error) {
-	var count int64
-	var err error
-
-	if user.Email != nil {
-		count, err = Count(ctx, map[string]string{"email": *user.Email})
-	} else if user.PhoneNumber != nil {
-		count, err = Count(ctx, map[string]string{"email": *user.Email})
-	} else {
-		return false, errors.New("empty user object")
-	}
-
-	if err != nil {
-		return false, err
-	}
-
-	if count > 0 {
-		return true, nil
-	}
-
-	return false, nil
-}
-
-func (user *User) FillDefaults() {
-	id := uuid.New().String()
-	user.ID = &id
-	user.IsDeleted = false
-	user.IsVerified = false
-	user.CreatedAt = time.Now()
-	user.UpdatedAt = time.Now()
-}
-
 func (user *User) Create(ctx context.Context) error {
-	exists, err := user.Exists(ctx)
+	exists, err := user.exists(ctx)
 
 	if err != nil {
 		return err
@@ -101,7 +46,7 @@ func (user *User) Create(ctx context.Context) error {
 		return errors.New("user already exits")
 	}
 
-	user.FillDefaults()
+	user.fillDefaults()
 	collection := helpers.GetCollection(config.UserDatabaseName, userCollectionName)
 
 	_, err = collection.InsertOne(ctx, user)
@@ -110,18 +55,18 @@ func (user *User) Create(ctx context.Context) error {
 		return err
 	}
 
-	go user.createHistory()
+	go user.createHistory(ctx)
 
 	return nil
 }
 
 func (user *User) CreateClaims(ctx context.Context, device *Device) (*TokenClaims, error) {
-	accessClaim, accessToken, err := user.CreateClaim(config.AccessTokenDuration, config.AccessTokenSecretKey)
+	accessClaim, accessToken, err := NewUserClaim("access", user)
 	if err != nil {
 		return nil, err
 	}
 
-	refreshClaim, refreshToken, err := user.CreateClaim(config.RefreshTokenDuration, config.RefreshTokenSecretKey)
+	refreshClaim, refreshToken, err := NewUserClaim("refresh", user)
 	if err != nil {
 		return nil, err
 	}
@@ -131,14 +76,14 @@ func (user *User) CreateClaims(ctx context.Context, device *Device) (*TokenClaim
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 
-		// todo => remove these, they may be redundant.
+		// todo => I may remove thing because i think it's redundant.
 		RefreshClaim: refreshClaim,
 		AccessClaim:  accessClaim,
 
 		DeviceId: device.ID,
 	}
 
-	err = claims.Persist(ctx)
+	err = claims.Create(ctx)
 
 	if err != nil {
 		return nil, err
@@ -147,64 +92,24 @@ func (user *User) CreateClaims(ctx context.Context, device *Device) (*TokenClaim
 	return claims, nil
 }
 
-func (user *User) CreateClaim(duration time.Duration, secret string) (*UserClaim, *string, error) {
-	claims := &UserClaim{
-		ID:          user.ID,
-		Email:       user.Email,
-		PhoneNumber: user.PhoneNumber,
-		StandardClaims: jwt.StandardClaims{
-			Issuer:   config.JWTIssuerName,
-			IssuedAt: time.Now().Unix(),
-			Audience: config.JWTAudience,
-			Id:       uuid.New().String(),
-			// todo => NotBefore "nbf"
-			// todo => Subject   "sub"
-			// Stays valid for 10 hours
-			ExpiresAt: time.Now().Local().
-				Add(duration).Unix(),
-		},
+func (user *User) SendVerificationMessage(ctx context.Context) {
+	intent, err := CreateIntent(ctx, user, getVerificationIntentType(user))
+
+	if err != nil {
+		log.Println("CREATE-VERIFICATION-INTENT-ERROR: ", err)
 	}
 
-	token, err := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).
-		SignedString([]byte(secret))
+	err = user.sendMessage(ctx, intent)
 
-	return claims, &token, err
+	if err != nil {
+		log.Println("SEND-VERIFICATION-EMAIL-ERROR: ", err)
+	}
 }
 
-func (user *User) createHistory() {
-	ctx, cancel := context.WithTimeout(context.Background(), config.BackgroundTaskTimeout)
-	defer cancel()
+// INTERNALS
 
-	eh := EmailHistory{
-		UserId: user.ID,
-		Email:  user.Email,
-	}
-	eh.Create(ctx)
-
-	ph := PasswordHistory{
-		UserId:   user.ID,
-		Password: user.Email,
-	}
-	ph.Create(ctx)
-
-	pnh := PhoneNumberHistory{
-		UserId:      user.ID,
-		PhoneNumber: user.PhoneNumber,
-	}
-	pnh.Create(ctx)
-}
-
-func (tc *TokenClaims) Persist(ctx context.Context) error {
-	id := uuid.New().String()
-	tc.ID = &id
-
-	collection := helpers.GetCollection(config.UserDatabaseName, tokenClaimsCollectionName)
-	_, err := collection.InsertOne(ctx, tc)
-
-	return err
-}
-
-func (user *User) SendEmail(ctx context.Context, intent *Intent) error {
+// sendMessage sends an email or sms to a user.
+func (user *User) sendMessage(ctx context.Context, intent *Intent) error {
 	defer ctx.Done()
 
 	switch intent.Action {
@@ -217,6 +122,44 @@ func (user *User) SendEmail(ctx context.Context, intent *Intent) error {
 	return errors.New("unable to find email intent")
 }
 
+// fillDefaults sets the User.IsDeleted, User.IsVerified, User.CreatedAt, User.UpdatedAt
+// User.ID fields on the struct. If the User.ID field is already present, don't provide any default
+// for the User struct fields.
+func (user *User) fillDefaults() {
+	if user.ID != nil {
+		return
+	}
+
+	id := uuid.New().String()
+	user.ID = &id
+	user.IsDeleted = false
+	user.IsVerified = false
+	user.CreatedAt = time.Now()
+	user.UpdatedAt = time.Now()
+}
+
+// createHistory creates an EmailHistory, PasswordHistory and PhoneNumberHistory for a User.
+func (user *User) createHistory(ctx context.Context) {
+	eh := EmailHistory{
+		UserId: user.ID,
+		Email:  user.Email,
+	}
+	go eh.Create(ctx)
+
+	ph := PasswordHistory{
+		UserId:   user.ID,
+		Password: user.Email,
+	}
+	go ph.Create(ctx)
+
+	pnh := PhoneNumberHistory{
+		UserId:      user.ID,
+		PhoneNumber: user.PhoneNumber,
+	}
+	go pnh.Create(ctx)
+}
+
+// sendEmail sends an email to the user (right now using amazon ses)
 func (user *User) sendEmail(intent *Intent) error {
 	// todo => compile template file
 	subject, text, html := helpers.GetEmailDetails(intent.Action)
@@ -228,4 +171,34 @@ func (user *User) sendEmail(intent *Intent) error {
 	}
 
 	return e.Send()
+}
+
+// exists checks if a user exists in the database.
+func (user *User) exists(ctx context.Context) (bool, error) {
+	var count int64
+	var err error
+
+	if user.Email != nil {
+		count, err = Count(ctx, map[string]string{"email": *user.Email})
+	} else if user.PhoneNumber != nil {
+		count, err = Count(ctx,
+			bson.M{
+				"$and": bson.M{
+					"phoneNumber.countryCode":      user.PhoneNumber.CountryCode,
+					"phoneNumber.subscriberNumber": user.PhoneNumber.SubscriberNumber,
+				},
+			})
+	} else {
+		return false, errors.New("something terribly wrong happened: the user doesn't have an email or phone number")
+	}
+
+	if err != nil {
+		return false, err
+	}
+
+	if count > 0 {
+		return true, nil
+	}
+
+	return false, nil
 }
