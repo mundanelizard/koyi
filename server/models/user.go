@@ -29,7 +29,7 @@ type User struct {
 	UpdatedAt   time.Time    `json:"updatedAt"`
 }
 
-func Count(ctx context.Context, filter interface{}) (int64, error) {
+func CountUser(ctx context.Context, filter interface{}) (int64, error) {
 	collection := helpers.GetCollection(config.UserDatabaseName, userCollectionName)
 	count, err := collection.CountDocuments(ctx, filter)
 	return count, err
@@ -60,7 +60,12 @@ func (user *User) Create(ctx context.Context) error {
 	return nil
 }
 
-func (user *User) CreateClaims(ctx context.Context, device *Device) (*TokenClaims, error) {
+func FindUser(ctx context.Context, filter bson.M) (*User, error) {
+
+	return nil, nil
+}
+
+func (user *User) CreateClaims(ctx context.Context, deviceId string) (*TokenClaims, error) {
 	accessClaim, accessToken, err := NewUserClaim("access", user)
 	if err != nil {
 		return nil, err
@@ -71,17 +76,7 @@ func (user *User) CreateClaims(ctx context.Context, device *Device) (*TokenClaim
 		return nil, err
 	}
 
-	claims := &TokenClaims{
-		CreatedAt:    time.Now(),
-		AccessToken:  accessToken,
-		RefreshToken: refreshToken,
-
-		// todo => I may remove thing because i think it's redundant.
-		RefreshClaim: refreshClaim,
-		AccessClaim:  accessClaim,
-
-		DeviceId: device.ID,
-	}
+	claims := NewTokenClaim(accessToken, refreshToken, refreshClaim, accessClaim, &deviceId)
 
 	err = claims.Create(ctx)
 
@@ -140,22 +135,13 @@ func (user *User) fillDefaults() {
 
 // createHistory creates an EmailHistory, PasswordHistory and PhoneNumberHistory for a User.
 func (user *User) createHistory(ctx context.Context) {
-	eh := EmailHistory{
-		UserId: user.ID,
-		Email:  user.Email,
-	}
+	eh := NewEmailHistory(user.ID, user.Email)
 	go eh.Create(ctx)
 
-	ph := PasswordHistory{
-		UserId:   user.ID,
-		Password: user.Email,
-	}
+	ph := NewPasswordHistory(user.ID, user.Password)
 	go ph.Create(ctx)
 
-	pnh := PhoneNumberHistory{
-		UserId:      user.ID,
-		PhoneNumber: user.PhoneNumber,
-	}
+	pnh := NewPhoneNumberHistory(user.ID, user.PhoneNumber)
 	go pnh.Create(ctx)
 }
 
@@ -179,9 +165,9 @@ func (user *User) exists(ctx context.Context) (bool, error) {
 	var err error
 
 	if user.Email != nil {
-		count, err = Count(ctx, map[string]string{"email": *user.Email})
+		count, err = CountUser(ctx, map[string]string{"email": *user.Email})
 	} else if user.PhoneNumber != nil {
-		count, err = Count(ctx,
+		count, err = CountUser(ctx,
 			bson.M{
 				"$and": bson.M{
 					"phoneNumber.countryCode":      user.PhoneNumber.CountryCode,

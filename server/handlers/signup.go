@@ -55,21 +55,26 @@ func CreateUserHandler(c *gin.Context, user *models.User) {
 		return
 	}
 
-	device := helpers.ExtractDeviceDetailsFromContext(c)
-	device.UserId = user.ID
-	err = device.Create(ctx)
-
 	if err != nil {
 		log.Println("CREATE-DEVICE-ERROR: ", err)
 	}
 
-	claims, err := user.CreateClaims(ctx, device)
+	device := helpers.ExtractDevice(c.Request, user.ID)
+
+	go user.SendVerificationMessage(ctx)
+	go device.Create(ctx)
+
+	AbortWithAuthDetails(c, ctx, user, *device.ID)
+}
+
+type GinContext gin.Context
+
+func AbortWithAuthDetails(c *gin.Context, ctx context.Context, user *models.User, deviceId string) {
+	claims, err := user.CreateClaims(ctx, deviceId)
 
 	if err != nil {
 		log.Println("GENERATE--JWT-ERROR: ", err)
 	}
-
-	go user.SendVerificationMessage(ctx)
 
 	response := map[string]interface{}{
 		"user":    user,

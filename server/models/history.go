@@ -36,15 +36,17 @@ type PhoneNumberHistory struct {
 	CreatedAt   time.Time    `json:"createdAt"`
 }
 
-func (ph *PasswordHistory) FillDefaults() {
+func NewPasswordHistory(userId, password *string) *PasswordHistory {
 	id := uuid.New().String()
-	ph.ID = &id
-	ph.CreatedAt = time.Now()
+	return &PasswordHistory{
+		UserId:   userId,
+		Password: password,
+		ID:       &id,
+	}
 }
 
 func (ph *PasswordHistory) Create(ctx context.Context) {
-	ph.FillDefaults()
-
+	ph.CreatedAt = time.Now()
 	collection := helpers.GetCollection(config.UserDatabaseName, passwordHistoryCollectionName)
 	_, err := collection.InsertOne(ctx, ph)
 
@@ -53,15 +55,17 @@ func (ph *PasswordHistory) Create(ctx context.Context) {
 	}
 }
 
-func (eh *EmailHistory) FillDefaults() {
+func NewEmailHistory(userId, email *string) *EmailHistory {
 	id := uuid.New().String()
-	eh.ID = &id
-	eh.CreatedAt = time.Now()
+	return &EmailHistory{
+		UserId: userId,
+		Email:  email,
+		ID:     &id,
+	}
 }
 
 func (eh *EmailHistory) Create(ctx context.Context) {
-	eh.FillDefaults()
-
+	eh.CreatedAt = time.Now()
 	collection := helpers.GetCollection(config.UserDatabaseName, emailHistoryCollectionName)
 	_, err := collection.InsertOne(ctx, eh)
 
@@ -70,15 +74,17 @@ func (eh *EmailHistory) Create(ctx context.Context) {
 	}
 }
 
-func (pnh *PhoneNumberHistory) FillDefaults() {
+func NewPhoneNumberHistory(userId *string, phoneNumber *PhoneNumber) *PhoneNumberHistory {
 	id := uuid.New().String()
-	pnh.ID = &id
-	pnh.CreatedAt = time.Now()
+	return &PhoneNumberHistory{
+		UserId:      userId,
+		PhoneNumber: phoneNumber,
+		ID:          &id,
+	}
 }
 
 func (pnh *PhoneNumberHistory) Create(ctx context.Context) {
-	pnh.FillDefaults()
-
+	pnh.CreatedAt = time.Now()
 	collection := helpers.GetCollection(config.UserDatabaseName, phoneNumberHistoryCollectionName)
 	_, err := collection.InsertOne(ctx, pnh)
 

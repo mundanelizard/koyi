@@ -23,4 +23,5 @@ const (
 	JWTIssuerName            = "koyi"
 	JWTAudience              = "koyi-client"
 	EmailAddress             = "info@koyi.com"
+	ValidateNewDevice        = true
 )

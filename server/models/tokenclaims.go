@@ -18,6 +18,20 @@ type TokenClaims struct {
 	CreatedAt    time.Time  `json:"createdAt"`
 }
 
+func NewTokenClaim(accessToken, refreshToken *string, refreshClaim, accessClaim *UserClaim, deviceId *string) *TokenClaims {
+	return &TokenClaims{
+		CreatedAt:    time.Now(),
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+
+		// todo => I may remove thing because i think it's redundant.
+		RefreshClaim: refreshClaim,
+		AccessClaim:  accessClaim,
+
+		DeviceId: deviceId,
+	}
+}
+
 func (tc *TokenClaims) Create(ctx context.Context) error {
 	id := uuid.New().String()
 	tc.ID = &id

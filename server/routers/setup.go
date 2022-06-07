@@ -47,8 +47,10 @@ func createAdminSettingsRoutes(router Groupable) {
 func createLoginInRoutes(router Groupable) {
 	group := router.Group("/who/login")
 
+	group.POST("/phone", middlewares.ValidatePhoneNumberSignIn, handlers.PhoneNumberSignInHandler)
+	group.POST("/email", middlewares.ValidateEmailSignIn, handlers.EmailSignInHandler)
+
 	group.POST("/email/totp", noOperationHandler) // logs the user in using email and otp
-	group.POST("/phone", noOperationHandler)
 	group.POST("/phone/totp", noOperationHandler) // logs the user in using phone number and otp
 }
 
@@ -62,8 +64,8 @@ func createMFARoutes(router Groupable) {
 func createSignUpRoutes(router Groupable) {
 	group := router.Group("/who/signup")
 
-	group.POST("/email", middlewares.ValidateEmailSignUp, handlers.EmailSignUpHandler)
-	group.POST("/phone", middlewares.ValidatePhoneNumberSignUp, handlers.PhoneNumberSignUpHandler)
+	group.POST("/email", middlewares.ValidateEmailSignIn, handlers.EmailSignUpHandler)
+	group.POST("/phone", middlewares.ValidatePhoneNumberSignIn, handlers.PhoneNumberSignUpHandler)
 }
 
 func createGeneralUserRoutes(router Groupable) {

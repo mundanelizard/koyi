@@ -1,9 +1,9 @@
 package helpers
 
 import (
-	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/mundanelizard/koyi/server/models"
+	"net/http"
 )
 
 /**
@@ -19,10 +19,11 @@ hardware_details: hstore containing memory, processor, device_model, device_name
 connection_speed: hstore containing downlink_max, connection_type
 */
 
-func ExtractDeviceDetailsFromContext(c *gin.Context) *models.Device {
+func ExtractDevice(r *http.Request, userId *string) *models.Device {
 	// todo => implement this
 	id := uuid.New().String()
 	return &models.Device{
-		ID: &id,
+		ID:     &id,
+		UserId: userId,
 	}
 }

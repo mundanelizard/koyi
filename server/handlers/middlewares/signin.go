@@ -7,7 +7,7 @@ import (
 	"net/http"
 )
 
-func ValidateEmailSignIn(c *gin.Context) {
+func ValidateEmailSignUp(c *gin.Context) {
 	var details map[string]interface{}
 
 	if err := c.BindJSON(&details); err != nil {
@@ -36,10 +36,9 @@ func ValidateEmailSignIn(c *gin.Context) {
 
 	c.Set("email", email)
 	c.Set("password", password)
-	c.Set("metadata", details["metadata"])
 }
 
-func ValidatePhoneNumberSignIn(c *gin.Context) {
+func ValidatePhoneNumberSignUp(c *gin.Context) {
 	var details map[string]interface{}
 
 	if err := c.BindJSON(&details); err != nil {
@@ -75,5 +74,4 @@ func ValidatePhoneNumberSignIn(c *gin.Context) {
 	c.Set("subscriberNumber", subscriberNumber)
 	c.Set("countryCode", countryCode)
 	c.Set("password", password)
-	c.Set("metadata", details["metadata"])
 }
