@@ -1,6 +1,7 @@
 package models
 
 import (
+	"fmt"
 	"github.com/golang-jwt/jwt"
 	"github.com/google/uuid"
 	"github.com/mundanelizard/koyi/server/config"
@@ -12,6 +13,22 @@ type UserClaim struct {
 	PhoneNumber *PhoneNumber `json:"phoneNumber"`
 	ID          *string      `json:"id"`
 	jwt.StandardClaims
+}
+
+type userClaimError struct {
+	op  string
+	err error
+}
+
+func (uce *userClaimError) Error() string {
+	return fmt.Sprintf("%s: %s", uce.op, uce.err)
+}
+
+func newUserClaimError(op string, err error) *userClaimError {
+	return &userClaimError{
+		op:  op,
+		err: err,
+	}
 }
 
 func NewUserClaim(tokenType string, user *User) (*UserClaim, *string, error) {
@@ -37,6 +54,10 @@ func NewUserClaim(tokenType string, user *User) (*UserClaim, *string, error) {
 
 	token, err := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).
 		SignedString([]byte(secret))
+
+	if err != nil {
+		return claims, &token, newUserClaimError("CREATE-JWT-ERROR", err)
+	}
 
 	return claims, &token, err
 }
