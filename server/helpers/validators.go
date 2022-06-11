@@ -6,14 +6,14 @@ import (
 	"unicode"
 )
 
-// IsValidEmail validates email using a wrapper around mail.ParseAddress and only returns the error.
-func IsValidEmail(email string) error {
+// ValidateEmail validates email using a wrapper around mail.ParseAddress and only returns the error.
+func ValidateEmail(email string) error {
 	_, err := mail.ParseAddress(email)
 	return err
 }
 
-// IsValidPassword validates a password based on the length, special characters and casing.
-func IsValidPassword(password string) error {
+// ValidatePassword validates a password based on the length, special characters and casing.
+func ValidatePassword(password string) error {
 	var count int
 	var containsNumber, containsUppercase, containsSpecialCharacter bool
 
@@ -58,7 +58,6 @@ func IsValidSubscriberNumber(sn string) bool {
 	return length > 3 && length <= 13
 }
 
-// IsValidCountryCode
 func IsValidCountryCode(cc string) bool {
 	length := len(cc)
 	return length > 1 && length <= 3

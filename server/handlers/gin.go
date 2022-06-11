@@ -33,8 +33,3 @@ func AbortGinWithAuth(c *gin.Context, ctx context.Context, user *models.User, de
 
 	c.AbortWithStatusJSON(http.StatusCreated, response)
 }
-
-// GroupableRoutes is an interface for *gin.Group
-type GroupableRoutes interface {
-	Group(relativePath string, handlers ...gin.HandlerFunc) *gin.RouterGroup
-}

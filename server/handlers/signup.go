@@ -3,9 +3,11 @@ package handlers
 import (
 	"context"
 	"github.com/gin-gonic/gin"
+	"github.com/mundanelizard/koyi/server/config"
 	"github.com/mundanelizard/koyi/server/handlers/middlewares"
 	"github.com/mundanelizard/koyi/server/helpers"
 	"github.com/mundanelizard/koyi/server/models"
+	"log"
 	"net/http"
 )
 
@@ -38,7 +40,7 @@ func phoneNumberSignUpHandler(c *gin.Context) {
 }
 
 func createUserHandler(c *gin.Context, user *models.User) {
-	ctx, cancel := context.WithTimeout(c.Request.Context(), 100)
+	ctx, cancel := context.WithTimeout(context.Background(), config.AverageServerTimeout)
 	defer cancel()
 
 	metadata, ok := c.Get("metadata")
@@ -50,6 +52,7 @@ func createUserHandler(c *gin.Context, user *models.User) {
 	err := user.Create(ctx)
 
 	if err != nil {
+		log.Println(err)
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{})
 		return
 	}
@@ -63,9 +66,9 @@ func createUserHandler(c *gin.Context, user *models.User) {
 }
 
 // CreateAuthenticationRoutes handles all the authentication request made in the application.
-func CreateAuthenticationRoutes(router GroupableRoutes) {
+func CreateAuthenticationRoutes(router *gin.RouterGroup) {
 	group := router.Group("/auth/signup")
 
-	group.POST("/email", middlewares.ValidateEmailSignIn, emailSignUpHandler)
-	group.POST("/phone", middlewares.ValidatePhoneNumberSignIn, phoneNumberSignUpHandler)
+	group.POST("/email", middlewares.ValidateEmailSignUp, emailSignUpHandler)
+	group.POST("/phone", middlewares.ValidatePhoneNumberSignUp, phoneNumberSignUpHandler)
 }

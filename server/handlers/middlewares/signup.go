@@ -7,7 +7,7 @@ import (
 	"net/http"
 )
 
-func ValidateEmailSignIn(c *gin.Context) {
+func ValidateEmailSignUp(c *gin.Context) {
 	var details map[string]interface{}
 
 	if err := c.BindJSON(&details); err != nil {
@@ -18,17 +18,19 @@ func ValidateEmailSignIn(c *gin.Context) {
 
 	email, ok := details["email"].(string)
 
-	if ok && helpers.IsValidEmail(email) != nil {
+	if !ok || helpers.ValidateEmail(email) != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{})
+		return
 	}
 
 	password, ok := details["password"].(string)
 
 	if !ok {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{})
+		return
 	}
 
-	err := helpers.IsValidPassword(password)
+	err := helpers.ValidatePassword(password)
 
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{})
@@ -39,7 +41,7 @@ func ValidateEmailSignIn(c *gin.Context) {
 	c.Set("metadata", details["metadata"])
 }
 
-func ValidatePhoneNumberSignIn(c *gin.Context) {
+func ValidatePhoneNumberSignUp(c *gin.Context) {
 	var details map[string]interface{}
 
 	if err := c.BindJSON(&details); err != nil {
@@ -50,26 +52,30 @@ func ValidatePhoneNumberSignIn(c *gin.Context) {
 
 	countryCode, ok := details["countryCode"].(string)
 
-	if ok && helpers.IsValidCountryCode(countryCode) {
+	if !ok || !helpers.IsValidCountryCode(countryCode) {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{})
+		return
 	}
 
 	subscriberNumber, ok := details["subscriberNumber"].(string)
 
-	if ok && helpers.IsValidSubscriberNumber(subscriberNumber) {
+	if !ok || !helpers.IsValidSubscriberNumber(subscriberNumber) {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{})
+		return
 	}
-
+	
 	password, ok := details["password"].(string)
 
 	if !ok {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{})
+		return
 	}
 
-	err := helpers.IsValidPassword(password)
+	err := helpers.ValidatePassword(password)
 
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{})
+		return
 	}
 
 	c.Set("subscriberNumber", subscriberNumber)

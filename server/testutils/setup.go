@@ -3,10 +3,12 @@ package testutils
 import (
 	"bytes"
 	"encoding/json"
+	"github.com/gin-gonic/gin"
 	"io"
 	"log"
 	"net/http"
 	"net/http/httptest"
+	"testing"
 )
 
 func NewHTTPTest(method, url string, body interface{}) (*http.Request, *httptest.ResponseRecorder) {
@@ -29,4 +31,22 @@ func NewHTTPTest(method, url string, body interface{}) (*http.Request, *httptest
 	rr := httptest.NewRecorder()
 
 	return r, rr
+}
+
+func NewEngine(prefix string, g func(router *gin.RouterGroup)) *gin.Engine {
+	engine := gin.Default()
+	g(engine.Group(prefix))
+	return engine
+}
+
+func ExpectToBe(t *testing.T, expected, value interface{}) {
+	if expected != value {
+		t.Fatalf("Expected '%v' received '%v'", expected, value)
+	}
+}
+
+func ExpectNotToBe(t *testing.T, expected, value interface{}) {
+	if expected == value {
+		t.Fatalf("Expected '%v' received '%v'", expected, value)
+	}
 }

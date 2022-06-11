@@ -10,7 +10,7 @@ import (
 )
 
 var MongoClient *mongo.Client
-var collectionCache map[string]map[string]*mongo.Collection
+var collectionCache = map[string]*mongo.Collection{}
 
 func init() {
 	MongoClient = connectDatabase(config.MongoUri)
@@ -37,12 +37,17 @@ func connectDatabase(uri string) *mongo.Client {
 }
 
 func GetCollection(databaseName, collectionName string) *mongo.Collection {
-	collection, ok := collectionCache[databaseName][collectionName]
+	searchName := fmt.Sprintf("%s:%s", databaseName, collectionName)
+	collection, ok := collectionCache[searchName]
 
 	if !ok {
 		collection = MongoClient.Database(databaseName).Collection(collectionName)
-		collectionCache[databaseName][collectionName] = collection
+		collectionCache[searchName] = collection
 	}
 
 	return collection
+}
+
+func GetDatabase(databaseName string) *mongo.Database {
+	return MongoClient.Database(databaseName)
 }

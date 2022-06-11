@@ -169,10 +169,8 @@ func (user *User) exists(ctx context.Context) (bool, error) {
 	} else if user.PhoneNumber != nil {
 		count, err = CountUser(ctx,
 			bson.M{
-				"$and": bson.M{
-					"phoneNumber.countryCode":      user.PhoneNumber.CountryCode,
-					"phoneNumber.subscriberNumber": user.PhoneNumber.SubscriberNumber,
-				},
+				"phoneNumber.countryCode":      user.PhoneNumber.CountryCode,
+				"phoneNumber.subscriberNumber": user.PhoneNumber.SubscriberNumber,
 			})
 	} else {
 		return false, errors.New("something terribly wrong happened: the user doesn't have an email or phone number")

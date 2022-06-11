@@ -6,7 +6,7 @@ import (
 	"log"
 )
 
-func createVersion1Handlers(engine handlers.GroupableRoutes) {
+func createVersion1Handlers(engine *gin.Engine) {
 	router := engine.Group("v1")
 	handlers.CreateAuthenticationRoutes(router)
 	//createAuthorizationRoutes(router)

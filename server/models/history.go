@@ -11,8 +11,8 @@ import (
 
 const (
 	passwordHistoryCollectionName    = "password-history"
-	phoneNumberHistoryCollectionName = "password-history"
-	emailHistoryCollectionName       = "password-history"
+	phoneNumberHistoryCollectionName = "phone-number-history"
+	emailHistoryCollectionName       = "email-history"
 )
 
 type PasswordHistory struct {

@@ -7,7 +7,7 @@ import (
 	"net/http"
 )
 
-func ValidateEmailSignUp(c *gin.Context) {
+func ValidateEmailSignIn(c *gin.Context) {
 	var details map[string]interface{}
 
 	if err := c.BindJSON(&details); err != nil {
@@ -18,7 +18,7 @@ func ValidateEmailSignUp(c *gin.Context) {
 
 	email, ok := details["email"].(string)
 
-	if ok && helpers.IsValidEmail(email) != nil {
+	if ok && helpers.ValidateEmail(email) != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{})
 	}
 
@@ -28,7 +28,7 @@ func ValidateEmailSignUp(c *gin.Context) {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{})
 	}
 
-	err := helpers.IsValidPassword(password)
+	err := helpers.ValidatePassword(password)
 
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{})
@@ -38,7 +38,7 @@ func ValidateEmailSignUp(c *gin.Context) {
 	c.Set("password", password)
 }
 
-func ValidatePhoneNumberSignUp(c *gin.Context) {
+func ValidatePhoneNumberSignIn(c *gin.Context) {
 	var details map[string]interface{}
 
 	if err := c.BindJSON(&details); err != nil {
@@ -65,7 +65,7 @@ func ValidatePhoneNumberSignUp(c *gin.Context) {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{})
 	}
 
-	err := helpers.IsValidPassword(password)
+	err := helpers.ValidatePassword(password)
 
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{})
