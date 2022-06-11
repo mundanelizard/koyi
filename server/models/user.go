@@ -148,7 +148,7 @@ func (user *User) createHistory(ctx context.Context) {
 // sendEmail sends an email to the user (right now using amazon ses)
 func (user *User) sendEmail(intent *Intent) error {
 	// todo => compile template file
-	subject, text, html := helpers.GetEmailDetails(intent.Action)
+	subject, text, html := GetEmailDetails(intent.Action)
 
 	e := &email.Email{
 		Subject:  subject,

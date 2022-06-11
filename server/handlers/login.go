@@ -55,7 +55,7 @@ func SignInHandler(c *gin.Context, user *models.User, password string) {
 		// todo => return a 400 error
 	}
 
-	device := helpers.ExtractDevice(c.Request, user.ID)
+	device := models.ExtractDevice(c.Request, user.ID)
 	exists, err := device.Exists(ctx)
 
 	if err != nil {
@@ -70,5 +70,5 @@ func SignInHandler(c *gin.Context, user *models.User, password string) {
 		// todo => send an email giving the user the ability to invalidate tokens.
 	}
 
-	AbortWithAuthDetails(c, ctx, user, *device.ID)
+	AbortGinWithAuth(c, ctx, user, *device.ID)
 }

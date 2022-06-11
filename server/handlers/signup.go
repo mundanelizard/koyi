@@ -3,14 +3,13 @@ package handlers
 import (
 	"context"
 	"github.com/gin-gonic/gin"
-	"github.com/mundanelizard/koyi/server/config"
+	"github.com/mundanelizard/koyi/server/handlers/middlewares"
 	"github.com/mundanelizard/koyi/server/helpers"
 	"github.com/mundanelizard/koyi/server/models"
-	"log"
 	"net/http"
 )
 
-func EmailSignUpHandler(c *gin.Context) {
+func emailSignUpHandler(c *gin.Context) {
 	email := c.GetString("email")
 	password := c.GetString("password")
 
@@ -19,10 +18,10 @@ func EmailSignUpHandler(c *gin.Context) {
 		Password: helpers.HashString(password),
 	}
 
-	CreateUserHandler(c, user)
+	createUserHandler(c, user)
 }
 
-func PhoneNumberSignUpHandler(c *gin.Context) {
+func phoneNumberSignUpHandler(c *gin.Context) {
 	countryCode := c.GetString("countryCode")
 	subscriberNumber := c.GetString("subscriberNumber")
 	password := c.GetString("password")
@@ -35,10 +34,10 @@ func PhoneNumberSignUpHandler(c *gin.Context) {
 		Password: helpers.HashString(password),
 	}
 
-	CreateUserHandler(c, user)
+	createUserHandler(c, user)
 }
 
-func CreateUserHandler(c *gin.Context, user *models.User) {
+func createUserHandler(c *gin.Context, user *models.User) {
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 100)
 	defer cancel()
 
@@ -55,37 +54,18 @@ func CreateUserHandler(c *gin.Context, user *models.User) {
 		return
 	}
 
-	device := helpers.ExtractDevice(c.Request, user.ID)
+	device := models.ExtractDevice(c.Request, user.ID)
 
 	go user.SendVerificationMessage(ctx)
 	go device.Create(ctx)
 
-	AbortWithAuthDetails(c, ctx, user, *device.ID)
+	AbortGinWithAuth(c, ctx, user, *device.ID)
 }
 
-type GinContext gin.Context
+// CreateAuthenticationRoutes handles all the authentication request made in the application.
+func CreateAuthenticationRoutes(router GroupableRoutes) {
+	group := router.Group("/auth/signup")
 
-func AbortWithAuthDetails(c *gin.Context, ctx context.Context, user *models.User, deviceId string) {
-	claims, err := user.CreateClaims(ctx, deviceId)
-
-	if err != nil {
-		log.Println(err)
-	}
-
-	response := map[string]interface{}{
-		"user":    user,
-		"token":   claims.AccessToken,
-		"success": true,
-	}
-
-	c.SetCookie(
-		"authentication",
-		*claims.RefreshToken,
-		config.RefreshTokenCookieMaxAge,
-		"/v1/who/refresh",
-		config.ServerDomain,
-		config.IsProduction,
-		true)
-
-	c.AbortWithStatusJSON(http.StatusCreated, response)
+	group.POST("/email", middlewares.ValidateEmailSignIn, emailSignUpHandler)
+	group.POST("/phone", middlewares.ValidatePhoneNumberSignIn, phoneNumberSignUpHandler)
 }
