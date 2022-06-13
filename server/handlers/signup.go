@@ -59,14 +59,22 @@ func createUserHandler(c *gin.Context, user *models.User) {
 
 	device := models.ExtractDevice(c.Request, user.ID)
 
-	go user.SendVerificationMessage(ctx)
-	go device.Create(ctx)
-
 	AbortGinWithAuth(c, ctx, user, *device.ID)
+
+	err = user.SendVerificationMessage(ctx)
+
+	if err != nil {
+		log.Println("SEND-VERIFICATION-EMAIL-ERROR: ", err)
+	}
+
+	err = device.Create(ctx)
+
+	if err != nil {
+		log.Println(err)
+	}
 }
 
-// CreateAuthenticationRoutes handles all the authentication request made in the application.
-func CreateAuthenticationRoutes(router *gin.RouterGroup) {
+func CreateSignUpRoutes(router *gin.RouterGroup) {
 	group := router.Group("/auth/signup")
 
 	group.POST("/email", middlewares.ValidateEmailSignUp, emailSignUpHandler)

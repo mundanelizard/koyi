@@ -8,15 +8,11 @@ import (
 )
 
 const (
-	intentsCollectionName   = "intents"
-	VerifyPhoneNumberIntent = "verify:phone-number"
-	VerifyEmailIntent       = "verify:email"
-)
+	intentsCollectionName = "intents"
 
-var actionUrls = map[string]string{
-	VerifyEmailIntent:       "https://gmail.com/google.com",
-	VerifyPhoneNumberIntent: "https://email/intent/intent",
-}
+	// Intents
+	accountVerificationIntent = "verification"
+)
 
 type Intent struct {
 	ID     string `json:"id"`
@@ -30,24 +26,6 @@ type Intent struct {
 	Fulfilled bool `json:"fulfilled"`
 }
 
-func CreateIntent(ctx context.Context, user *User, action string) (*Intent, error) {
-	actionCode := "123456"
-	var err error
-
-	if err != nil {
-		return nil, err
-	}
-
-	intent := &Intent{
-		UserId:     *user.ID,
-		Action:     action,
-		ActionCode: actionCode,
-		ActionUrl:  actionUrls[action],
-	}
-
-	return intent, intent.Create(ctx)
-}
-
 func (i *Intent) Create(ctx context.Context) error {
 	i.ID = uuid.New().String()
 	i.Fulfilled = false
@@ -58,36 +36,30 @@ func (i *Intent) Create(ctx context.Context) error {
 	return err
 }
 
-func getVerificationIntentType(user *User) string {
-	switch {
-	case user.Email != nil:
-		return VerifyEmailIntent
-	case user.PhoneNumber != nil:
-		return VerifyPhoneNumberIntent
+func NewIntent(userId, action string, generateActionUrl func(intentId, actionCode string) string) *Intent {
+	actionCode := helpers.RandomIntegers(6)
+	intentId := uuid.New().String()
+
+	intent := &Intent{
+		ID:     intentId,
+		UserId: userId,
+		Action: action,
+		// todo => change to template.
+		ActionUrl:  generateActionUrl(intentId, actionCode),
+		Fulfilled:  false,
+		ActionCode: actionCode,
 	}
-	return VerifyEmailIntent
+
+	return intent
 }
 
-var actionSubject = map[string]string{
-	VerifyEmailIntent:       "https://gmail.com/google.com",
-	VerifyPhoneNumberIntent: "https://email/intent/intent",
+func getEmail(action string) (*string, *string) {
+	text := ""
+	html := ""
+	return &text, &html
 }
 
-var actionHTML = map[string]string{
-	VerifyEmailIntent:       "https://gmail.com/google.com",
-	VerifyPhoneNumberIntent: "https://email/intent/intent",
-}
-
-var actionText = map[string]string{
-	VerifyEmailIntent:       "https://gmail.com/google.com",
-	VerifyPhoneNumberIntent: "https://email/intent/intent",
-}
-
-func GetEmailDetails(action string) (string, *string, *string) {
-	// todo => use a template file
-	text := actionText[action]
-	html := actionHTML[action]
-	subject := actionSubject[action]
-
-	return subject, &text, &html
+func getSms(action string) *string {
+	text := ""
+	return &text
 }

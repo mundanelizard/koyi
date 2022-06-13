@@ -2,15 +2,9 @@ package config
 
 import "time"
 
-/**
-Configure as environment variable?
-
-UI - domain/ip address
-*/
-
 const (
 	RefreshTokenCookieMaxAge = 200
-	ServerDomain             = "localhost:5002"
+	ServerDomain             = "localhost"
 	IsProduction             = false
 	AccessTokenDuration      = time.Hour * time.Duration(10) // 10 hours
 	RefreshTokenDuration     = time.Hour * time.Duration(20) // 20 hours

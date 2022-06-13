@@ -3,12 +3,11 @@ package models
 import (
 	"context"
 	"errors"
+	"fmt"
 	"github.com/google/uuid"
-	"github.com/mundanelizard/koyi/pkg/email"
 	"github.com/mundanelizard/koyi/server/config"
 	"github.com/mundanelizard/koyi/server/helpers"
 	"go.mongodb.org/mongo-driver/bson"
-	"log"
 	"time"
 )
 
@@ -18,15 +17,16 @@ const (
 )
 
 type User struct {
-	Email       *string      `json:"email"`
-	PhoneNumber *PhoneNumber `json:"phoneNumber"`
-	Password    *string      `json:"-" bson:"password"`
-	Metadata    *interface{} `json:"metadata"`
-	ID          *string      `json:"id"`
-	IsDeleted   bool         `json:"deleted"`
-	IsVerified  bool         `json:"isVerified"`
-	CreatedAt   time.Time    `json:"createdAt"`
-	UpdatedAt   time.Time    `json:"updatedAt"`
+	Email                 *string      `json:"email"`
+	IsEmailVerified       bool         `json:"isEmailVerified"`
+	PhoneNumber           *PhoneNumber `json:"phoneNumber"`
+	IsPhoneNumberVerified bool         `json:"isPhoneNumberVerified"`
+	Password              *string      `json:"-" bson:"password"`
+	Metadata              *interface{} `json:"metadata"`
+	ID                    *string      `json:"id"`
+	IsDeleted             bool         `json:"deleted"`
+	CreatedAt             time.Time    `json:"createdAt"`
+	UpdatedAt             time.Time    `json:"updatedAt"`
 }
 
 func CountUser(ctx context.Context, filter interface{}) (int64, error) {
@@ -87,35 +87,45 @@ func (user *User) CreateClaims(ctx context.Context, deviceId string) (*TokenClai
 	return claims, nil
 }
 
-func (user *User) SendVerificationMessage(ctx context.Context) {
-	intent, err := CreateIntent(ctx, user, getVerificationIntentType(user))
+func (user *User) SendVerificationMessage(ctx context.Context) error {
+	intent := NewIntent(
+		*user.ID,
+		accountVerificationIntent,
+		func(intentId, actionId string) string {
+			return fmt.Sprintf(
+				config.ServerDomain+"/v1/auth/signup/verify/%s/%s",
+				intentId, actionId)
+		},
+	)
+
+	err := intent.Create(ctx)
 
 	if err != nil {
-		log.Println("CREATE-VERIFICATION-INTENT-ERROR: ", err)
+		return err
 	}
 
-	err = user.sendMessage(ctx, intent)
+	var m helpers.Sendable
 
-	if err != nil {
-		log.Println("SEND-VERIFICATION-EMAIL-ERROR: ", err)
+	if user.Email != nil {
+		text, html := getEmail(intent.Action)
+
+		m = &helpers.Email{
+			Subject: "Verification Email",
+			Text:    text,
+			HTML:    html,
+		}
+	} else if user.PhoneNumber != nil {
+		text := getSms(intent.Action)
+
+		m = &helpers.Sms{
+			Text: text,
+		}
 	}
+
+	return m.Send()
 }
 
 // INTERNALS
-
-// sendMessage sends an email or sms to a user.
-func (user *User) sendMessage(ctx context.Context, intent *Intent) error {
-	defer ctx.Done()
-
-	switch intent.Action {
-	case VerifyEmailIntent:
-		return user.sendEmail(intent)
-	case VerifyPhoneNumberIntent:
-		return user.sendEmail(intent)
-	}
-
-	return errors.New("unable to find email intent")
-}
 
 // fillDefaults sets the User.IsDeleted, User.IsVerified, User.CreatedAt, User.UpdatedAt
 // User.ID fields on the struct. If the User.ID field is already present, don't provide any default
@@ -128,7 +138,9 @@ func (user *User) fillDefaults() {
 	id := uuid.New().String()
 	user.ID = &id
 	user.IsDeleted = false
-	user.IsVerified = false
+
+	user.IsEmailVerified = false
+	user.IsPhoneNumberVerified = false
 	user.CreatedAt = time.Now()
 	user.UpdatedAt = time.Now()
 }
@@ -143,20 +155,6 @@ func (user *User) createHistory(ctx context.Context) {
 
 	pnh := NewPhoneNumberHistory(user.ID, user.PhoneNumber)
 	go pnh.Create(ctx)
-}
-
-// sendEmail sends an email to the user (right now using amazon ses)
-func (user *User) sendEmail(intent *Intent) error {
-	// todo => compile template file
-	subject, text, html := GetEmailDetails(intent.Action)
-
-	e := &email.Email{
-		Subject:  subject,
-		BodyText: text,
-		BodyHTML: html,
-	}
-
-	return e.Send()
 }
 
 // exists checks if a user exists in the database.
