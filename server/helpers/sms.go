@@ -1,13 +1,17 @@
 package helpers
 
-type Sms struct {
+type sms struct {
 	Text *string
 }
 
-func (s *Sms) Send() error {
+func (s *sms) Send() error {
 	return nil
 }
 
 type Sendable interface {
 	Send() error
+}
+
+func NewSms(text *string) Sendable {
+	return &sms{Text: text}
 }

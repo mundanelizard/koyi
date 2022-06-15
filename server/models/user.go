@@ -104,22 +104,17 @@ func (user *User) SendVerificationMessage(ctx context.Context) error {
 		return err
 	}
 
+	data := &templateData{Intent: intent, User: user}
 	var m helpers.Sendable
 
 	if user.Email != nil {
-		text, html := getEmail(intent.Action)
-
-		m = &helpers.Email{
-			Subject: "Verification Email",
-			Text:    text,
-			HTML:    html,
-		}
+		m, err = getEmail(data)
 	} else if user.PhoneNumber != nil {
-		text := getSms(intent.Action)
+		m, err = getSms(data)
+	}
 
-		m = &helpers.Sms{
-			Text: text,
-		}
+	if err != nil {
+		return err
 	}
 
 	return m.Send()
