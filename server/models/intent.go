@@ -13,25 +13,27 @@ const (
 	intentsCollectionName = "intents"
 
 	// Intents
-	accountVerificationIntent = "verification"
+	accountVerificationIntent     = "verification"
+	emailVerificationIntent       = "verification:email"
+	phoneNumberVerificationIntent = "verification:phone-number"
 )
 
 var (
-	htmlEmailVerificationTemplate = template.Must(template.ParseFiles("./templates/verification.html"))
-	textEmailVerificationTemplate = template.Must(template.ParseFiles("./templates/verification.html"))
-	smsVerificationTemplate       = template.Must(template.ParseFiles("./templates/verification.html"))
+	htmlEmailVerificationTemplate = template.Must(template.ParseFiles(config.HTMLEmailVerificationTemplatePath))
+	textEmailVerificationTemplate = template.Must(template.ParseFiles(config.TextEmailVerificationTemplatePath))
+	smsVerificationTemplate       = template.Must(template.ParseFiles(config.PhoneNumberVerificationTemplatePath))
 )
 
 type Intent struct {
-	ID     string `json:"id"`
-	UserId string `json:"userId"`
+	ID     string `json:"id" bson:"id"`
+	UserId string `json:"userId" bson:"userId"`
 
-	Action string `json:"action"` // reset-password
+	Action string `json:"action" bson:"action"` // reset-password
 
-	ActionCode string `json:"-"`
-	ActionUrl  string `json:"-"`
+	ActionCode string `json:"-" bson:"-"`
+	ActionUrl  string `json:"-" bson:"-"`
 
-	Fulfilled bool `json:"fulfilled"`
+	Fulfilled bool `json:"fulfilled" bson:"fulfilled"`
 }
 
 func (i *Intent) Create(ctx context.Context) error {

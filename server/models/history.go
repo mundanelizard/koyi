@@ -16,24 +16,24 @@ const (
 )
 
 type PasswordHistory struct {
-	ID        *string   `json:"id"`
-	UserId    *string   `json:"userId"`
-	Password  *string   `json:"password"`
-	CreatedAt time.Time `json:"createdAt"`
+	ID        *string   `json:"id" bson:"id"`
+	UserId    *string   `json:"userId" bson:"userId"`
+	Password  *string   `json:"password" bson:"password"`
+	CreatedAt time.Time `json:"createdAt" bson:"createdAt"`
 }
 
 type EmailHistory struct {
-	ID        *string   `json:"id"`
-	UserId    *string   `json:"userId"`
-	Email     *string   `json:"password"`
-	CreatedAt time.Time `json:"createdAt"`
+	ID        *string   `json:"id" bson:"id"`
+	UserId    *string   `json:"userId" bson:"userId"`
+	Email     *string   `json:"password" bson:"email"`
+	CreatedAt time.Time `json:"createdAt" bson:"createdAt"`
 }
 
 type PhoneNumberHistory struct {
-	ID          *string      `json:"id"`
-	UserId      *string      `json:"userId"`
-	PhoneNumber *PhoneNumber `json:"phoneNumber"`
-	CreatedAt   time.Time    `json:"createdAt"`
+	ID          *string      `json:"id" bson:"id"`
+	UserId      *string      `json:"userId" bson:"userId"`
+	PhoneNumber *PhoneNumber `json:"phoneNumber" bson:"phoneNumber"`
+	CreatedAt   time.Time    `json:"createdAt" bson:"createdAt"`
 }
 
 func NewPasswordHistory(userId, password *string) *PasswordHistory {

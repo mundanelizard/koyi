@@ -17,16 +17,16 @@ const (
 )
 
 type User struct {
-	Email                 *string      `json:"email"`
-	IsEmailVerified       bool         `json:"isEmailVerified"`
-	PhoneNumber           *PhoneNumber `json:"phoneNumber"`
-	IsPhoneNumberVerified bool         `json:"isPhoneNumberVerified"`
+	Email                 *string      `json:"email" bson:"email"`
+	IsEmailVerified       bool         `json:"isEmailVerified" bson:"isEmailVerified"`
+	PhoneNumber           *PhoneNumber `json:"phoneNumber" bson:"phoneNumber"`
+	IsPhoneNumberVerified bool         `json:"isPhoneNumberVerified" bson:"isPhoneNumberVerified"`
 	Password              *string      `json:"-" bson:"password"`
-	Metadata              *interface{} `json:"metadata"`
-	ID                    *string      `json:"id"`
-	IsDeleted             bool         `json:"deleted"`
-	CreatedAt             time.Time    `json:"createdAt"`
-	UpdatedAt             time.Time    `json:"updatedAt"`
+	Metadata              *interface{} `json:"metadata" bson:"metadata"`
+	ID                    *string      `json:"id" bson:"id"`
+	IsDeleted             bool         `json:"deleted" bson:"isDeleted"`
+	CreatedAt             time.Time    `json:"createdAt" bson:"createdAt"`
+	UpdatedAt             time.Time    `json:"updatedAt" bson:"updatedAt"`
 }
 
 func CountUser(ctx context.Context, filter interface{}) (int64, error) {
@@ -87,10 +87,10 @@ func (user *User) CreateClaims(ctx context.Context, deviceId string) (*TokenClai
 	return claims, nil
 }
 
-func (user *User) SendVerificationMessage(ctx context.Context) error {
+func (user *User) SendVerificationMail(ctx context.Context) error {
 	intent := NewIntent(
 		*user.ID,
-		accountVerificationIntent,
+		emailVerificationIntent,
 		func(intentId, actionId string) string {
 			return fmt.Sprintf(
 				config.ServerDomain+"/v1/auth/signup/verify/%s/%s",
@@ -105,13 +105,34 @@ func (user *User) SendVerificationMessage(ctx context.Context) error {
 	}
 
 	data := &templateData{Intent: intent, User: user}
-	var m helpers.Sendable
+	m, err := getEmail(data)
 
-	if user.Email != nil {
-		m, err = getEmail(data)
-	} else if user.PhoneNumber != nil {
-		m, err = getSms(data)
+	if err != nil {
+		return err
 	}
+
+	return m.Send()
+}
+
+func (user *User) SendVerificationSms(ctx context.Context) error {
+	intent := NewIntent(
+		*user.ID,
+		phoneNumberVerificationIntent,
+		func(intentId, actionId string) string {
+			return fmt.Sprintf(
+				config.ServerDomain+"/v1/auth/signup/verify/%s/%s",
+				intentId, actionId)
+		},
+	)
+
+	err := intent.Create(ctx)
+
+	if err != nil {
+		return err
+	}
+
+	data := &templateData{Intent: intent, User: user}
+	m, err := getSms(data)
 
 	if err != nil {
 		return err

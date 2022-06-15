@@ -12,41 +12,17 @@ import (
 )
 
 func emailSignUpHandler(c *gin.Context) {
+	ctx, cancel := context.WithTimeout(context.Background(), config.AverageServerTimeout)
+	defer cancel()
+
 	email := c.GetString("email")
 	password := c.GetString("password")
+	metadata, _ := c.Get("metadata")
 
 	user := &models.User{
 		Email:    &email,
 		Password: helpers.HashString(password),
-	}
-
-	createUserHandler(c, user)
-}
-
-func phoneNumberSignUpHandler(c *gin.Context) {
-	countryCode := c.GetString("countryCode")
-	subscriberNumber := c.GetString("subscriberNumber")
-	password := c.GetString("password")
-
-	user := &models.User{
-		PhoneNumber: &models.PhoneNumber{
-			CountryCode:      countryCode,
-			SubscriberNumber: subscriberNumber,
-		},
-		Password: helpers.HashString(password),
-	}
-
-	createUserHandler(c, user)
-}
-
-func createUserHandler(c *gin.Context, user *models.User) {
-	ctx, cancel := context.WithTimeout(context.Background(), config.AverageServerTimeout)
-	defer cancel()
-
-	metadata, ok := c.Get("metadata")
-
-	if ok {
-		user.Metadata = &metadata
+		Metadata: &metadata,
 	}
 
 	err := user.Create(ctx)
@@ -57,20 +33,61 @@ func createUserHandler(c *gin.Context, user *models.User) {
 		return
 	}
 
-	device := models.ExtractDevice(c.Request, user.ID)
-
-	AbortGinWithAuth(c, ctx, user, *device.ID)
-
-	err = user.SendVerificationMessage(ctx)
+	err = user.SendVerificationMail(ctx)
 
 	if err != nil {
 		log.Println("SEND-VERIFICATION-EMAIL-ERROR: ", err)
 	}
 
+	device := models.ExtractDevice(c.Request, user.ID)
+	AbortGinWithAuth(c, ctx, user, *device.ID)
+
 	err = device.Create(ctx)
 
 	if err != nil {
+		log.Println("DEVICE-CREATION-ERROR: ", err)
+	}
+}
+
+func phoneNumberSignUpHandler(c *gin.Context) {
+	ctx, cancel := context.WithTimeout(context.Background(), config.AverageServerTimeout)
+	defer cancel()
+
+	countryCode := c.GetString("countryCode")
+	subscriberNumber := c.GetString("subscriberNumber")
+	password := c.GetString("password")
+	metadata, _ := c.Get("metadata")
+
+	user := &models.User{
+		PhoneNumber: &models.PhoneNumber{
+			CountryCode:      countryCode,
+			SubscriberNumber: subscriberNumber,
+		},
+		Password: helpers.HashString(password),
+		Metadata: &metadata,
+	}
+
+	err := user.Create(ctx)
+
+	if err != nil {
 		log.Println(err)
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{})
+		return
+	}
+
+	err = user.SendVerificationSms(ctx)
+
+	if err != nil {
+		log.Println("SEND-VERIFICATION-SMS-ERROR: ", err)
+	}
+
+	device := models.ExtractDevice(c.Request, user.ID)
+	AbortGinWithAuth(c, ctx, user, *device.ID)
+
+	err = device.Create(ctx)
+
+	if err != nil {
+		log.Println("DEVICE-CREATION-ERROR: ", err)
 	}
 }
 

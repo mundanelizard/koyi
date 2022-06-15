@@ -52,7 +52,7 @@ func TestEmailSignInHandler(t *testing.T) {
 
 	t.Run("With right credentials", func(t *testing.T) {
 		user := map[string]interface{}{
-			"email":    "mundanelizard@gmail.com.com",
+			"email":    "mundanelizard@gmail.com",
 			"password": "SuperC0olC4+",
 			"metadata": map[string]string{
 				"firstName": "Mundane",
@@ -159,5 +159,5 @@ func TestPhoneNumberSignInHandler(t *testing.T) {
 	})
 
 	// Clean Up
-	//testutils.ClearDatabase()
+	testutils.ClearDatabase()
 }
