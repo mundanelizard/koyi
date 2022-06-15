@@ -8,10 +8,13 @@ import (
 )
 
 var (
-	get  []string
+	get = []string{
+		"/v1/auth/verify/:intentId/:code",
+	}
 	post = []string{
 		"/v1/auth/signup/email",
 		"/v1/auth/signup/phone",
+		"/v1/auth/verify",
 	}
 	update []string
 	patch  []string

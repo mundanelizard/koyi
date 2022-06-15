@@ -9,6 +9,7 @@ import (
 func createVersion1Handlers(engine *gin.Engine) {
 	router := engine.Group("v1")
 	handlers.CreateSignUpRoutes(router)
+	handlers.CreateVerificationRoutes(router)
 	//createAuthorizationRoutes(router)
 	//createAdminRoutes(router)
 	//createMFARoutes(router)

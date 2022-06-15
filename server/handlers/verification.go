@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/mundanelizard/koyi/server/handlers/middlewares"
 	"log"
 	"net/http"
 )
@@ -27,24 +26,27 @@ func verifyHandler(c *gin.Context) {
 
 	ok, err := verifyUser(intentId, code)
 
-	if !ok {
-		log.Println(err)
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{})
-		return
-	}
-
 	if err != nil {
 		log.Println(err)
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{})
 		return
 	}
 
+	if !ok {
+		c.AbortWithStatusJSON(http.StatusConflict, gin.H{})
+		return
+	}
+
 	c.AbortWithStatusJSON(http.StatusOK, gin.H{})
+}
+
+func verifyUser(intentId, code string) (bool, error) {
+	return true, nil
 }
 
 func CreateVerificationRoutes(router *gin.RouterGroup) {
 	group := router.Group("/auth/verify")
 
-	group.POST("/", middlewares.ValidateEmailSignUp, emailSignUpHandler)
-	group.GET("/:intentId/:code", middlewares.ValidatePhoneNumberSignUp, phoneNumberSignUpHandler)
+	group.POST("/", verifyHandler)
+	group.GET("/:intentId/:code", verifyHandler)
 }
