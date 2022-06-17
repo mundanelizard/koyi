@@ -30,6 +30,8 @@ You don't use Koyi.
 Yeah, you can. You can help with bugs, docs, tests and general issues.
 
 
+## Todo
+[ ] Templates from the directory and enable remote loading and fetching of template.
 
 ## Do I plan to add in the future?
 - Google

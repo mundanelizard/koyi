@@ -1,4 +1,4 @@
-package email
+package helpers
 
 import (
 	"github.com/aws/aws-sdk-go/aws"
@@ -11,11 +11,11 @@ const (
 	CharSet = "UTF-8"
 )
 
-type Email struct {
-	To       string
-	Subject  string
-	BodyText *string
-	BodyHTML *string
+type email struct {
+	To      string
+	Subject string
+	Text    *string
+	HTML    *string
 }
 
 var sess, err = session.NewSession(&aws.Config{
@@ -25,7 +25,16 @@ var sess, err = session.NewSession(&aws.Config{
 // Create an SES session.
 var svc = ses.New(sess)
 
-func (email *Email) Send() error {
+func NewMail(to, subject string, text, html *string) Sendable {
+	return &email{
+		to,
+		subject,
+		text,
+		html,
+	}
+}
+
+func (email *email) Send() error {
 	// Assemble the email.
 	input := &ses.SendEmailInput{
 		Destination: &ses.Destination{
@@ -38,11 +47,11 @@ func (email *Email) Send() error {
 			Body: &ses.Body{
 				Html: &ses.Content{
 					Charset: aws.String(CharSet),
-					Data:    aws.String(*email.BodyHTML),
+					Data:    aws.String(*email.HTML),
 				},
 				Text: &ses.Content{
 					Charset: aws.String(CharSet),
-					Data:    aws.String(*email.BodyText),
+					Data:    aws.String(*email.Text),
 				},
 			},
 			Subject: &ses.Content{

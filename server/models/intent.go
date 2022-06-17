@@ -1,51 +1,39 @@
 package models
 
 import (
+	"bytes"
 	"context"
 	"github.com/google/uuid"
 	"github.com/mundanelizard/koyi/server/config"
 	"github.com/mundanelizard/koyi/server/helpers"
+	"html/template"
 )
 
 const (
-	intentsCollectionName   = "intents"
-	VerifyPhoneNumberIntent = "verify:phone-number"
-	VerifyEmailIntent       = "verify:email"
+	intentsCollectionName = "intents"
+
+	// Intents
+	accountVerificationIntent     = "verification"
+	emailVerificationIntent       = "verification:email"
+	phoneNumberVerificationIntent = "verification:phone-number"
 )
 
-var actionUrls = map[string]string{
-	VerifyEmailIntent:       "https://gmail.com/google.com",
-	VerifyPhoneNumberIntent: "https://email/intent/intent",
-}
+var (
+	htmlEmailVerificationTemplate = template.Must(template.ParseFiles(config.HTMLEmailVerificationTemplatePath))
+	textEmailVerificationTemplate = template.Must(template.ParseFiles(config.TextEmailVerificationTemplatePath))
+	smsVerificationTemplate       = template.Must(template.ParseFiles(config.PhoneNumberVerificationTemplatePath))
+)
 
 type Intent struct {
-	ID     string `json:"id"`
-	UserId string `json:"userId"`
+	ID     string `json:"id" bson:"id"`
+	UserId string `json:"userId" bson:"userId"`
 
-	Action string `json:"action"` // reset-password
+	Action string `json:"action" bson:"action"` // reset-password
 
-	ActionCode string `json:"-"`
-	ActionUrl  string `json:"-"`
+	ActionCode string `json:"-" bson:"-"`
+	ActionUrl  string `json:"-" bson:"-"`
 
-	Fulfilled bool `json:"fulfilled"`
-}
-
-func CreateIntent(ctx context.Context, user *User, action string) (*Intent, error) {
-	actionCode := "123456"
-	var err error
-
-	if err != nil {
-		return nil, err
-	}
-
-	intent := &Intent{
-		UserId:     *user.ID,
-		Action:     action,
-		ActionCode: actionCode,
-		ActionUrl:  actionUrls[action],
-	}
-
-	return intent, intent.Create(ctx)
+	Fulfilled bool `json:"fulfilled" bson:"fulfilled"`
 }
 
 func (i *Intent) Create(ctx context.Context) error {
@@ -58,36 +46,63 @@ func (i *Intent) Create(ctx context.Context) error {
 	return err
 }
 
-func getVerificationIntentType(user *User) string {
-	switch {
-	case user.Email != nil:
-		return VerifyEmailIntent
-	case user.PhoneNumber != nil:
-		return VerifyPhoneNumberIntent
+func NewIntent(userId, action string, generateActionUrl func(intentId, actionCode string) string) *Intent {
+	actionCode := helpers.RandomIntegers(6)
+	intentId := uuid.New().String()
+
+	intent := &Intent{
+		ID:     intentId,
+		UserId: userId,
+		Action: action,
+		// todo => change to template.
+		ActionUrl:  generateActionUrl(intentId, actionCode),
+		Fulfilled:  false,
+		ActionCode: actionCode,
 	}
-	return VerifyEmailIntent
+
+	return intent
 }
 
-var actionSubject = map[string]string{
-	VerifyEmailIntent:       "https://gmail.com/google.com",
-	VerifyPhoneNumberIntent: "https://email/intent/intent",
+type templateData struct {
+	Intent *Intent
+	User   *User
 }
 
-var actionHTML = map[string]string{
-	VerifyEmailIntent:       "https://gmail.com/google.com",
-	VerifyPhoneNumberIntent: "https://email/intent/intent",
+func getEmail(data *templateData) (helpers.Sendable, error) {
+	var textBuffer *bytes.Buffer
+	var htmlBuffer *bytes.Buffer
+	var subject string
+	var err error
+
+	if data.Intent.Action == accountVerificationIntent {
+		subject = "Verification Email"
+		err = htmlEmailVerificationTemplate.Execute(htmlBuffer, data)
+		err = textEmailVerificationTemplate.Execute(textBuffer, data)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	text := textBuffer.String()
+	html := htmlBuffer.String()
+
+	return helpers.NewMail(*data.User.Email, subject, &text, &html), err
 }
 
-var actionText = map[string]string{
-	VerifyEmailIntent:       "https://gmail.com/google.com",
-	VerifyPhoneNumberIntent: "https://email/intent/intent",
-}
+func getSms(data *templateData) (helpers.Sendable, error) {
+	var buffer *bytes.Buffer
+	var err error
 
-func GetEmailDetails(action string) (string, *string, *string) {
-	// todo => use a template file
-	text := actionText[action]
-	html := actionHTML[action]
-	subject := actionSubject[action]
+	if data.Intent.Action == accountVerificationIntent {
+		err = smsVerificationTemplate.Execute(buffer, data)
+	}
 
-	return subject, &text, &html
+	if err != nil {
+		return nil, err
+	}
+
+	text := buffer.String()
+
+	return helpers.NewSms(&text), err
 }

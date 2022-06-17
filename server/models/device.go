@@ -14,10 +14,10 @@ const (
 )
 
 type Device struct {
-	ID        *string   `json:"id"`
-	UserId    *string   `json:"userId"`
-	Password  *string   `json:"password"`
-	CreatedAt time.Time `json:"createdAt"`
+	ID        *string   `json:"id" bson:"id"`
+	UserId    *string   `json:"userId" bson:"userId"`
+	Password  *string   `json:"password" bson:"password"`
+	CreatedAt time.Time `json:"createdAt" bson:"createdAt"`
 }
 
 func (device *Device) Create(ctx context.Context) error {

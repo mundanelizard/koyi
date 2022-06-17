@@ -9,13 +9,13 @@ import (
 )
 
 type TokenClaims struct {
-	ID           *string    `json:"id"`
-	DeviceId     *string    `json:"deviceId"`
-	AccessToken  *string    `json:"accessToken"`
-	RefreshToken *string    `json:"refreshToken"`
-	RefreshClaim *UserClaim `json:"refreshClaim"`
-	AccessClaim  *UserClaim `json:"accessClaim"`
-	CreatedAt    time.Time  `json:"createdAt"`
+	ID           *string    `json:"id" bson:"id"`
+	DeviceId     *string    `json:"deviceId" bson:"deviceId"`
+	AccessToken  *string    `json:"accessToken" bson:"accessToken"`
+	RefreshToken *string    `json:"refreshToken" bson:"refreshToken"`
+	RefreshClaim *UserClaim `json:"refreshClaim" bson:"refreshClaim"`
+	AccessClaim  *UserClaim `json:"accessClaim" bson:"accessClaim"`
+	CreatedAt    time.Time  `json:"createdAt" bson:"createdAt"`
 }
 
 func NewTokenClaim(accessToken, refreshToken *string, refreshClaim, accessClaim *UserClaim, deviceId *string) *TokenClaims {

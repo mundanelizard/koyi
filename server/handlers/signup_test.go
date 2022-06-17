@@ -9,7 +9,7 @@ import (
 )
 
 func TestEmailSignInHandler(t *testing.T) {
-	server := testutils.NewEngine("/v1/", CreateAuthenticationRoutes)
+	server := testutils.NewEngine("/v1/", CreateSignUpRoutes)
 
 	t.Run("With wrong credentials", func(t *testing.T) {
 		t.Run("[Invalid Email]", func(t *testing.T) {
@@ -52,7 +52,7 @@ func TestEmailSignInHandler(t *testing.T) {
 
 	t.Run("With right credentials", func(t *testing.T) {
 		user := map[string]interface{}{
-			"email":    "mundanelizard@gmail.com.com",
+			"email":    "mundanelizard@gmail.com",
 			"password": "SuperC0olC4+",
 			"metadata": map[string]string{
 				"firstName": "Mundane",
@@ -84,7 +84,7 @@ func TestEmailSignInHandler(t *testing.T) {
 
 func TestPhoneNumberSignInHandler(t *testing.T) {
 
-	server := testutils.NewEngine("/v1/", CreateAuthenticationRoutes)
+	server := testutils.NewEngine("/v1/", CreateSignUpRoutes)
 
 	t.Run("With wrong credentials", func(t *testing.T) {
 		t.Run("[Invalid Phone Number]", func(t *testing.T) {
@@ -159,5 +159,5 @@ func TestPhoneNumberSignInHandler(t *testing.T) {
 	})
 
 	// Clean Up
-	//testutils.ClearDatabase()
+	testutils.ClearDatabase()
 }
