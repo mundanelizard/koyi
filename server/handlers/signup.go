@@ -39,13 +39,13 @@ func emailSignUpHandler(c *gin.Context) {
 		log.Println("SEND-VERIFICATION-EMAIL-ERROR: ", err)
 	}
 
-	device := models.ExtractDevice(c.Request, user.ID)
-	AbortGinWithAuth(c, ctx, user, *device.ID)
-
-	err = device.Create(ctx)
-
-	if err != nil {
-		log.Println("DEVICE-CREATION-ERROR: ", err)
+	// todo => remove the duplications
+	if config.CreateTokenOnSignUp {
+		device := models.ExtractAndCreateDevice(ctx, c.Request, *user.ID)
+		AbortGinWithAuth(c, ctx, user, device.ID)
+	} else {
+		go models.ExtractAndCreateDevice(ctx, c.Request, *user.ID)
+		c.AbortWithStatusJSON(http.StatusCreated, user)
 	}
 }
 
@@ -81,13 +81,13 @@ func phoneNumberSignUpHandler(c *gin.Context) {
 		log.Println("SEND-VERIFICATION-SMS-ERROR: ", err)
 	}
 
-	device := models.ExtractDevice(c.Request, user.ID)
-	AbortGinWithAuth(c, ctx, user, *device.ID)
-
-	err = device.Create(ctx)
-
-	if err != nil {
-		log.Println("DEVICE-CREATION-ERROR: ", err)
+	// todo => remove the duplications
+	if config.CreateTokenOnSignUp {
+		device := models.ExtractAndCreateDevice(ctx, c.Request, *user.ID)
+		AbortGinWithAuth(c, ctx, user, device.ID)
+	} else {
+		go models.ExtractAndCreateDevice(ctx, c.Request, *user.ID)
+		c.AbortWithStatusJSON(http.StatusCreated, user)
 	}
 }
 

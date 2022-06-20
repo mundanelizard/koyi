@@ -60,9 +60,18 @@ func (user *User) Create(ctx context.Context) error {
 	return nil
 }
 
-func FindUser(ctx context.Context, filter bson.M) (*User, error) {
+func FindUser(ctx context.Context, userId string) (*User, error) {
+	var user User
 
-	return nil, nil
+	collection := helpers.GetCollection(config.UserDatabaseName, intentsCollectionName)
+	err := collection.FindOne(ctx, bson.M{"id": userId}).Decode(&user)
+
+	return &user, err
+}
+
+func (user *User) Update(ctx context.Context, m bson.M) error {
+	collection := helpers.GetCollection(config.UserDatabaseName, intentsCollectionName)
+	return collection.FindOneAndUpdate(ctx, bson.M{"id": user.ID}, m).Decode(user)
 }
 
 func (user *User) CreateClaims(ctx context.Context, deviceId string) (*TokenClaims, error) {
@@ -90,7 +99,7 @@ func (user *User) CreateClaims(ctx context.Context, deviceId string) (*TokenClai
 func (user *User) SendVerificationMail(ctx context.Context) error {
 	intent := NewIntent(
 		*user.ID,
-		emailVerificationIntent,
+		EmailVerificationIntent,
 		func(intentId, actionId string) string {
 			return fmt.Sprintf(
 				config.ServerDomain+"/v1/auth/signup/verify/%s/%s",
@@ -117,7 +126,7 @@ func (user *User) SendVerificationMail(ctx context.Context) error {
 func (user *User) SendVerificationSms(ctx context.Context) error {
 	intent := NewIntent(
 		*user.ID,
-		phoneNumberVerificationIntent,
+		PhoneNumberVerificationIntent,
 		func(intentId, actionId string) string {
 			return fmt.Sprintf(
 				config.ServerDomain+"/v1/auth/signup/verify/%s/%s",

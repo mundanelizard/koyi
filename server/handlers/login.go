@@ -55,7 +55,7 @@ func SignInHandler(c *gin.Context, user *models.User, password string) {
 		// todo => return a 400 error
 	}
 
-	device := models.ExtractDevice(c.Request, user.ID)
+	device := models.ExtractAndCreateDevice(c.Request, user.ID)
 	exists, err := device.Exists(ctx)
 
 	if err != nil {

@@ -12,8 +12,8 @@ import (
 const (
 	historyCollectionName = "history"
 	passwordFieldName     = "password"
-	emailFieldName        = "password"
-	phoneNumberFieldName  = "password"
+	emailFieldName        = "email"
+	phoneNumberFieldName  = "phone-number"
 )
 
 type History struct {

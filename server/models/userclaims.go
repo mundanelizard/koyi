@@ -18,7 +18,6 @@ type Token struct {
 	Email       *string      `json:"email"`
 	PhoneNumber *PhoneNumber `json:"phoneNumber"`
 	ID          *string      `json:"id"`
-	DeviceId    *string      `json:"deviceId"`
 	jwt.StandardClaims
 }
 
