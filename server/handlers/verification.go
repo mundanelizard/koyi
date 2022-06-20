@@ -11,6 +11,31 @@ import (
 	"net/http"
 )
 
+func extractIntentDetails(c *gin.Context) (string, string, error) {
+	var intentId string
+	var code string
+
+	var err error
+
+	if c.Request.Method == http.MethodPost {
+		var body map[string]string
+		err = c.BindJSON(&body)
+		intentId = body["intentId"]
+		code = body["code"]
+	} else {
+		intentId = c.Param("intentId")
+		code = c.Param("code")
+	}
+
+	if len(intentId) == 0 {
+		return "", "", errors.New("bad request: missing 'intentId'")
+	} else if len(code) == 0 {
+		return "", "", errors.New("bad request: missing 'code'")
+	}
+
+	return intentId, code, err
+}
+
 func verifyHandler(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), config.AverageServerTimeout)
 	defer cancel()
@@ -72,33 +97,61 @@ func verifyHandler(c *gin.Context) {
 	c.AbortWithStatusJSON(http.StatusOK, gin.H{})
 }
 
-func extractIntentDetails(c *gin.Context) (string, string, error) {
-	var intentId string
-	var code string
+func requestPhoneNumberVerificationHandler(c *gin.Context) {
+	ctx, cancel := context.WithTimeout(context.Background(), config.AverageServerTimeout)
+	defer cancel()
 
-	var err error
+	userId := c.GetString("userId")
 
-	if c.Request.Method == http.MethodPost {
-		var body map[string]string
-		err = c.BindJSON(&body)
-		intentId = body["intentId"]
-		code = body["code"]
-	} else {
-		intentId = c.Param("intentId")
-		code = c.Param("code")
+	user, err := models.FindUser(ctx, userId)
+
+	if user.IsPhoneNumberVerified {
+		log.Println(err)
+		c.AbortWithStatusJSON(http.StatusConflict, gin.H{})
+		return
 	}
 
-	if len(intentId) == 0 {
-		return "", "", errors.New("bad request: missing 'intentId'")
-	} else if len(code) == 0 {
-		return "", "", errors.New("bad request: missing 'code'")
+	err = user.SendVerificationSms(ctx)
+
+	if err != nil {
+		log.Println(err)
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{})
+		return
 	}
 
-	return intentId, code, err
+	c.AbortWithStatusJSON(http.StatusOK, gin.H{})
+}
+
+func requestEmailVerificationHandler(c *gin.Context) {
+	ctx, cancel := context.WithTimeout(context.Background(), config.AverageServerTimeout)
+	defer cancel()
+
+	userId := c.GetString("userId")
+
+	user, err := models.FindUser(ctx, userId)
+
+	if user.IsEmailVerified {
+		log.Println(err)
+		c.AbortWithStatusJSON(http.StatusConflict, gin.H{})
+		return
+	}
+
+	err = user.SendVerificationMail(ctx)
+
+	if err != nil {
+		log.Println(err)
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{})
+		return
+	}
+
+	c.AbortWithStatusJSON(http.StatusOK, gin.H{})
 }
 
 func CreateVerificationRoutes(router *gin.RouterGroup) {
 	group := router.Group("/auth/verify")
+
+	group.POST("/phone-number", middlewares.AuthoriseUser, requestPhoneNumberVerificationHandler)
+	group.POST("/email", middlewares.AuthoriseUser, requestEmailVerificationHandler)
 
 	group.POST("/", verifyHandler)
 	group.GET("/:intentId/:code", verifyHandler)
