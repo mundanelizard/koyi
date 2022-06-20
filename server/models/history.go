@@ -10,83 +10,34 @@ import (
 )
 
 const (
-	passwordHistoryCollectionName    = "password-history"
-	phoneNumberHistoryCollectionName = "phone-number-history"
-	emailHistoryCollectionName       = "email-history"
+	historyCollectionName = "history"
+	passwordFieldName     = "password"
+	emailFieldName        = "password"
+	phoneNumberFieldName  = "password"
 )
 
-type PasswordHistory struct {
-	ID        *string   `json:"id" bson:"id"`
-	UserId    *string   `json:"userId" bson:"userId"`
-	Password  *string   `json:"password" bson:"password"`
-	CreatedAt time.Time `json:"createdAt" bson:"createdAt"`
+type History struct {
+	ID        string      `json:"id" bson:"id"`
+	UserId    string      `json:"userId" bson:"userId"`
+	Value     interface{} `json:"value" bson:"value"`
+	Field     string      `json:"field" bson:"field"`
+	Timestamp time.Time   `json:"createdAt" bson:"timestamp"`
 }
 
-type EmailHistory struct {
-	ID        *string   `json:"id" bson:"id"`
-	UserId    *string   `json:"userId" bson:"userId"`
-	Email     *string   `json:"password" bson:"email"`
-	CreatedAt time.Time `json:"createdAt" bson:"createdAt"`
-}
-
-type PhoneNumberHistory struct {
-	ID          *string      `json:"id" bson:"id"`
-	UserId      *string      `json:"userId" bson:"userId"`
-	PhoneNumber *PhoneNumber `json:"phoneNumber" bson:"phoneNumber"`
-	CreatedAt   time.Time    `json:"createdAt" bson:"createdAt"`
-}
-
-func NewPasswordHistory(userId, password *string) *PasswordHistory {
+func NewHistory(userId, field string, value interface{}) *History {
 	id := uuid.New().String()
-	return &PasswordHistory{
-		UserId:   userId,
-		Password: password,
-		ID:       &id,
-	}
-}
-
-func (ph *PasswordHistory) Create(ctx context.Context) {
-	ph.CreatedAt = time.Now()
-	collection := helpers.GetCollection(config.UserDatabaseName, passwordHistoryCollectionName)
-	_, err := collection.InsertOne(ctx, ph)
-
-	if err != nil {
-		log.Println(err)
-	}
-}
-
-func NewEmailHistory(userId, email *string) *EmailHistory {
-	id := uuid.New().String()
-	return &EmailHistory{
+	return &History{
+		ID:     id,
 		UserId: userId,
-		Email:  email,
-		ID:     &id,
+		Value:  value,
+		Field:  field,
 	}
 }
 
-func (eh *EmailHistory) Create(ctx context.Context) {
-	eh.CreatedAt = time.Now()
-	collection := helpers.GetCollection(config.UserDatabaseName, emailHistoryCollectionName)
-	_, err := collection.InsertOne(ctx, eh)
-
-	if err != nil {
-		log.Println(err)
-	}
-}
-
-func NewPhoneNumberHistory(userId *string, phoneNumber *PhoneNumber) *PhoneNumberHistory {
-	id := uuid.New().String()
-	return &PhoneNumberHistory{
-		UserId:      userId,
-		PhoneNumber: phoneNumber,
-		ID:          &id,
-	}
-}
-
-func (pnh *PhoneNumberHistory) Create(ctx context.Context) {
-	pnh.CreatedAt = time.Now()
-	collection := helpers.GetCollection(config.UserDatabaseName, phoneNumberHistoryCollectionName)
-	_, err := collection.InsertOne(ctx, pnh)
+func (h *History) Create(ctx context.Context) {
+	h.Timestamp = time.Now()
+	collection := helpers.GetCollection(config.UserDatabaseName, historyCollectionName)
+	_, err := collection.InsertOne(ctx, h)
 
 	if err != nil {
 		log.Println(err)

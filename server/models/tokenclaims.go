@@ -9,26 +9,21 @@ import (
 )
 
 type TokenClaims struct {
-	ID           *string    `json:"id" bson:"id"`
-	DeviceId     *string    `json:"deviceId" bson:"deviceId"`
-	AccessToken  *string    `json:"accessToken" bson:"accessToken"`
-	RefreshToken *string    `json:"refreshToken" bson:"refreshToken"`
-	RefreshClaim *UserClaim `json:"refreshClaim" bson:"refreshClaim"`
-	AccessClaim  *UserClaim `json:"accessClaim" bson:"accessClaim"`
-	CreatedAt    time.Time  `json:"createdAt" bson:"createdAt"`
+	ID           *string   `json:"id" bson:"id"`
+	UserId       *string   `json:"userId" bson:"userId"`
+	DeviceId     *string   `json:"deviceId" bson:"deviceId"`
+	AccessToken  *string   `json:"accessToken" bson:"accessToken"`
+	RefreshToken *string   `json:"refreshToken" bson:"refreshToken"`
+	CreatedAt    time.Time `json:"createdAt" bson:"createdAt"`
 }
 
-func NewTokenClaim(accessToken, refreshToken *string, refreshClaim, accessClaim *UserClaim, deviceId *string) *TokenClaims {
+func NewClaim(accessToken, refreshToken, deviceId, userId *string) *TokenClaims {
 	return &TokenClaims{
 		CreatedAt:    time.Now(),
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
-
-		// todo => I may remove thing because i think it's redundant.
-		RefreshClaim: refreshClaim,
-		AccessClaim:  accessClaim,
-
-		DeviceId: deviceId,
+		DeviceId:     deviceId,
+		UserId:       userId,
 	}
 }
 

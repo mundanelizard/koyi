@@ -66,17 +66,17 @@ func FindUser(ctx context.Context, filter bson.M) (*User, error) {
 }
 
 func (user *User) CreateClaims(ctx context.Context, deviceId string) (*TokenClaims, error) {
-	accessClaim, accessToken, err := NewUserClaim("access", user)
+	at, err := NewToken(accessToken, user)
 	if err != nil {
 		return nil, err
 	}
 
-	refreshClaim, refreshToken, err := NewUserClaim("refresh", user)
+	rt, err := NewToken(refreshToken, user)
 	if err != nil {
 		return nil, err
 	}
 
-	claims := NewTokenClaim(accessToken, refreshToken, refreshClaim, accessClaim, &deviceId)
+	claims := NewClaim(at, rt, user.ID, &deviceId)
 
 	err = claims.Create(ctx)
 
@@ -163,14 +163,18 @@ func (user *User) fillDefaults() {
 
 // createHistory creates an EmailHistory, PasswordHistory and PhoneNumberHistory for a User.
 func (user *User) createHistory(ctx context.Context) {
-	eh := NewEmailHistory(user.ID, user.Email)
-	go eh.Create(ctx)
+	ph := NewHistory(*user.ID, passwordFieldName, *user.Password)
+	ph.Create(ctx)
 
-	ph := NewPasswordHistory(user.ID, user.Password)
-	go ph.Create(ctx)
+	if user.Email != nil {
+		eh := NewHistory(*user.ID, emailFieldName, *user.Email)
+		eh.Create(ctx)
+	}
 
-	pnh := NewPhoneNumberHistory(user.ID, user.PhoneNumber)
-	go pnh.Create(ctx)
+	if user.PhoneNumber != nil {
+		pnh := NewHistory(*user.ID, phoneNumberFieldName, user.PhoneNumber)
+		pnh.Create(ctx)
+	}
 }
 
 // exists checks if a user exists in the database.
