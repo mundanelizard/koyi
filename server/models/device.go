@@ -2,8 +2,10 @@ package models
 
 import (
 	"context"
+	"errors"
 	"github.com/mundanelizard/koyi/server/config"
 	"github.com/mundanelizard/koyi/server/helpers"
+	"go.mongodb.org/mongo-driver/bson"
 	"log"
 	"net/http"
 )
@@ -29,6 +31,10 @@ func (device *Device) Create(ctx context.Context) error {
 
 // Exists checks if a user exists in the database.
 func (device *Device) Exists(ctx context.Context) (bool, error) {
+	if device.ID == "" {
+		return false, errors.New("invalid device id")
+	}
+
 	var count int64
 	var err error
 
@@ -51,7 +57,7 @@ func CountDevice(ctx context.Context, filter interface{}) (int64, error) {
 	return count, err
 }
 
-func extractDevice(r *http.Request) *Device {
+func ExtractDevice(r *http.Request) *Device {
 	return &Device{
 		ID:      r.Header.Get("device-id"),
 		OS:      r.Header.Get("platform"),
@@ -62,11 +68,20 @@ func extractDevice(r *http.Request) *Device {
 }
 
 func ExtractAndCreateDevice(ctx context.Context, r *http.Request, userId string) *Device {
-	device := extractDevice(r)
+	device := ExtractDevice(r)
 	device.UserId = userId
 	err := device.Create(ctx)
 
 	log.Println(err)
 
 	return device
+}
+
+func FindDevice(ctx context.Context, deviceId string) (*Device, error) {
+	var device Device
+
+	collection := helpers.GetCollection(config.UserDatabaseName, intentsCollectionName)
+	err := collection.FindOne(ctx, bson.M{"id": deviceId}).Decode(&device)
+
+	return &device, err
 }

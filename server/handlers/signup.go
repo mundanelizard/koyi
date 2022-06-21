@@ -92,6 +92,8 @@ func phoneNumberSignUpHandler(c *gin.Context) {
 }
 
 func CreateSignUpRoutes(router *gin.RouterGroup) {
+	// Add the ability to assign roles to users.
+	// If the user is coming from 'web' you can restrict his roles.
 	group := router.Group("/auth/signup")
 
 	group.POST("/email", middlewares.ValidateEmailSignUp, emailSignUpHandler)

@@ -60,7 +60,16 @@ func (user *User) Create(ctx context.Context) error {
 	return nil
 }
 
-func FindUser(ctx context.Context, userId string) (*User, error) {
+func FindUser(ctx context.Context, filter bson.M) (*User, error) {
+	var user User
+
+	collection := helpers.GetCollection(config.UserDatabaseName, intentsCollectionName)
+	err := collection.FindOne(ctx, filter).Decode(&user)
+
+	return &user, err
+}
+
+func FindUserById(ctx context.Context, userId string) (*User, error) {
 	var user User
 
 	collection := helpers.GetCollection(config.UserDatabaseName, intentsCollectionName)

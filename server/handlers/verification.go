@@ -63,7 +63,7 @@ func verifyHandler(c *gin.Context) {
 		return
 	}
 
-	user, err := models.FindUser(ctx, intent.UserId)
+	user, err := models.FindUserById(ctx, intent.UserId)
 
 	if err != nil {
 		log.Println(err)
@@ -103,7 +103,7 @@ func requestPhoneNumberVerificationHandler(c *gin.Context) {
 
 	userId := c.GetString("userId")
 
-	user, err := models.FindUser(ctx, userId)
+	user, err := models.FindUserById(ctx, userId)
 
 	if user.IsPhoneNumberVerified {
 		log.Println(err)
@@ -128,7 +128,7 @@ func requestEmailVerificationHandler(c *gin.Context) {
 
 	userId := c.GetString("userId")
 
-	user, err := models.FindUser(ctx, userId)
+	user, err := models.FindUserById(ctx, userId)
 
 	if user.IsEmailVerified {
 		log.Println(err)
@@ -148,6 +148,7 @@ func requestEmailVerificationHandler(c *gin.Context) {
 }
 
 func CreateVerificationRoutes(router *gin.RouterGroup) {
+	// This route should be able to auto generate otp for admin application only, based on API Key
 	group := router.Group("/auth/verify")
 
 	group.POST("/phone-number", middlewares.AuthoriseUser, requestPhoneNumberVerificationHandler)

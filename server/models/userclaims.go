@@ -15,9 +15,8 @@ const (
 )
 
 type Token struct {
-	Email       *string      `json:"email"`
-	PhoneNumber *PhoneNumber `json:"phoneNumber"`
-	ID          *string      `json:"id"`
+	ID       *string     `json:"id"`
+	Metadata interface{} `json:"metadata"`
 	jwt.StandardClaims
 }
 
@@ -26,9 +25,8 @@ func NewToken(tokenType string, user *User) (*string, error) {
 	duration := getUserClaimDuration(tokenType)
 
 	claim := &Token{
-		ID:          user.ID,
-		Email:       user.Email,
-		PhoneNumber: user.PhoneNumber,
+		ID:       user.ID,
+		Metadata: user.Metadata,
 		StandardClaims: jwt.StandardClaims{
 			Issuer:   config.JWTIssuerName,
 			IssuedAt: time.Now().Unix(),
