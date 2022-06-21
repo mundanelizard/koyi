@@ -53,7 +53,7 @@ func verifyHandler(c *gin.Context) {
 
 	if err != nil {
 		log.Println(err)
-		c.AbortWithStatusJSON(http.StatusNotFound, gin.H{})
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{})
 		return
 	}
 

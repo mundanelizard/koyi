@@ -14,8 +14,7 @@ import (
 )
 
 const (
-	userCollectionName        = "users"
-	tokenClaimsCollectionName = "user-tokens"
+	userCollectionName = "users"
 )
 
 type User struct {
@@ -63,7 +62,7 @@ func (user *User) Create(ctx context.Context) error {
 	return nil
 }
 
-func FindUser(ctx context.Context, filter bson.M) (*User, error) {
+func FindUser(ctx context.Context, filter interface{}) (*User, error) {
 	var user User
 
 	collection := services.GetCollection(config.UserDatabaseName, intentsCollectionName)
@@ -96,18 +95,12 @@ func (user *User) VerifyPassword(password string) bool {
 	return true
 }
 
-func (user *User) CreateClaims(ctx context.Context, deviceId string) (*TokenClaims, error) {
-	at, err := NewToken(accessToken, user)
-	if err != nil {
-		return nil, err
-	}
+func (user *User) CreateTokens(ctx context.Context, deviceId string) (*Tokens, error) {
+	claims, err := NewTokens(deviceId, user)
 
-	rt, err := NewToken(refreshToken, user)
 	if err != nil {
-		return nil, err
+		return claims, err
 	}
-
-	claims := NewClaim(at, rt, user.ID, &deviceId)
 
 	err = claims.Create(ctx)
 
@@ -214,13 +207,9 @@ func (user *User) exists(ctx context.Context) (bool, error) {
 	var err error
 
 	if user.Email != nil {
-		count, err = CountUser(ctx, map[string]string{"email": *user.Email})
+		count, err = CountUser(ctx, bson.M{"email": *user.Email})
 	} else if user.PhoneNumber != nil {
-		count, err = CountUser(ctx,
-			bson.M{
-				"phoneNumber.countryCode":      user.PhoneNumber.CountryCode,
-				"phoneNumber.subscriberNumber": user.PhoneNumber.SubscriberNumber,
-			})
+		count, err = CountUser(ctx, bson.M{"phoneNumber": user.PhoneNumber})
 	} else {
 		return false, errors.New("something terribly wrong happened: the user doesn't have an email or phone number")
 	}

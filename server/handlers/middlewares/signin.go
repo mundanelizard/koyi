@@ -2,7 +2,7 @@ package middlewares
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/mundanelizard/koyi/server/services"
+	"github.com/mundanelizard/koyi/server/models"
 	"log"
 	"net/http"
 )
@@ -18,17 +18,19 @@ func ValidateEmailSignIn(c *gin.Context) {
 
 	email, ok := details["email"].(string)
 
-	if ok && services.ValidateEmail(email) != nil {
+	if !ok || ValidateEmail(email) != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{})
+		return
 	}
 
 	password, ok := details["password"].(string)
 
 	if !ok {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{})
+		return
 	}
 
-	err := services.ValidatePassword(password)
+	err := ValidatePassword(password)
 
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{})
@@ -36,6 +38,7 @@ func ValidateEmailSignIn(c *gin.Context) {
 
 	c.Set("email", email)
 	c.Set("password", password)
+	c.Next()
 }
 
 func ValidatePhoneNumberSignIn(c *gin.Context) {
@@ -47,31 +50,34 @@ func ValidatePhoneNumberSignIn(c *gin.Context) {
 		return
 	}
 
-	countryCode, ok := details["countryCode"].(string)
+	sn, _ := details["subscriberNumber"].(string)
+	cc, _ := details["countryCode"].(string)
 
-	if ok && services.IsValidCountryCode(countryCode) {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{})
+	phoneNumber := &models.PhoneNumber{
+		SubscriberNumber: sn,
+		CountryCode:      cc,
 	}
 
-	subscriberNumber, ok := details["subscriberNumber"].(string)
-
-	if ok && services.IsValidSubscriberNumber(subscriberNumber) {
+	if !phoneNumber.IsValid() {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{})
+		return
 	}
 
 	password, ok := details["password"].(string)
 
 	if !ok {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{})
+		return
 	}
 
-	err := services.ValidatePassword(password)
+	err := ValidatePassword(password)
 
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{})
+		return
 	}
 
-	c.Set("subscriberNumber", subscriberNumber)
-	c.Set("countryCode", countryCode)
+	c.Set("phoneNumber", phoneNumber)
 	c.Set("password", password)
+	c.Next()
 }

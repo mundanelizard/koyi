@@ -29,14 +29,10 @@ func emailSignInHandler(c *gin.Context) {
 }
 
 func phoneNumberSignInHandler(c *gin.Context) {
-	countryCode := c.GetString("countryCode")
-	subscriberNumber := c.GetString("subscriberNumber")
+	phoneNumber, _ := c.Get("phoneNumber")
 	password := c.GetString("password")
 
-	user, err := models.FindUser(c, bson.M{
-		"phoneNumber.subscriberNumber": subscriberNumber,
-		"phoneNumber.countryCode":      countryCode,
-	})
+	user, err := models.FindUser(c, bson.M{"phoneNumber": phoneNumber.(*models.PhoneNumber)})
 
 	if err != nil {
 		log.Println(err)
@@ -77,7 +73,7 @@ func signIn(c *gin.Context, user *models.User, password string) {
 }
 
 func CreateSignInRoutes(router *gin.RouterGroup) {
-	group := router.Group("/auth/sign-in")
+	group := router.Group("/auth/signin")
 
 	group.POST("/phone-number", middlewares.ValidatePhoneNumberSignIn, phoneNumberSignInHandler)
 	group.POST("/email", middlewares.ValidateEmailSignIn, emailSignInHandler)

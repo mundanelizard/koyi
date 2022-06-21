@@ -53,9 +53,12 @@ func PhoneNumberSignUpValidator(c *gin.Context) {
 		return
 	}
 
+	sn, _ := details["subscriberNumber"].(string)
+	cc, _ := details["countryCode"].(string)
+
 	phoneNumber := &models.PhoneNumber{
-		SubscriberNumber: details["countryCode"].(string),
-		CountryCode:      details["subscriberNumber"].(string),
+		SubscriberNumber: sn,
+		CountryCode:      cc,
 	}
 
 	if !phoneNumber.IsValid() {
@@ -77,9 +80,10 @@ func PhoneNumberSignUpValidator(c *gin.Context) {
 		return
 	}
 
-	c.Set("phoneNumber", &phoneNumber)
+	c.Set("phoneNumber", phoneNumber)
 	c.Set("password", password)
 	c.Set("metadata", details["metadata"])
+	c.Next()
 }
 
 // ValidatePassword validates a password based on the length, special characters and casing.

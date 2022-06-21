@@ -14,7 +14,7 @@ const (
 	refreshToken = "refresh-token"
 )
 
-type Token struct {
+type Claim struct {
 	UserId   *string     `json:"id"`
 	Metadata interface{} `json:"metadata"`
 	jwt.StandardClaims
@@ -22,11 +22,11 @@ type Token struct {
 
 // todo => update to public - private key set up (RSA256)
 
-func NewToken(tokenType string, user *User) (*string, error) {
+func NewClaim(tokenType string, user *User) (*string, error) {
 	secret := getUserClaimSecret(tokenType)
 	duration := getUserClaimDuration(tokenType)
 
-	claim := &Token{
+	claim := &Claim{
 		UserId:   user.ID,
 		Metadata: user.Metadata,
 		StandardClaims: jwt.StandardClaims{
@@ -52,10 +52,10 @@ func NewToken(tokenType string, user *User) (*string, error) {
 	return &token, err
 }
 
-func DecodeToken(tokenType string, token *string) (*Token, error) {
+func DecodeClaim(tokenType string, token *string) (*Claim, error) {
 	parsedToken, err := jwt.ParseWithClaims(
 		*token,
-		&Token{},
+		&Claim{},
 		func(token *jwt.Token) (interface{}, error) {
 			return getUserClaimSecret(tokenType), nil
 		},
@@ -65,7 +65,7 @@ func DecodeToken(tokenType string, token *string) (*Token, error) {
 		return nil, err
 	}
 
-	claims, ok := parsedToken.Claims.(*Token)
+	claims, ok := parsedToken.Claims.(*Claim)
 	if !ok {
 		return nil, errors.New("unable retrieve token")
 	}
