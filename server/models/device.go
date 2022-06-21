@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"github.com/mundanelizard/koyi/server/config"
-	"github.com/mundanelizard/koyi/server/helpers"
+	"github.com/mundanelizard/koyi/server/services"
 	"go.mongodb.org/mongo-driver/bson"
 	"log"
 	"net/http"
@@ -24,7 +24,7 @@ type Device struct {
 }
 
 func (device *Device) Create(ctx context.Context) error {
-	collection := helpers.GetCollection(config.UserDatabaseName, deviceCollectionName)
+	collection := services.GetCollection(config.UserDatabaseName, deviceCollectionName)
 	_, err := collection.InsertOne(ctx, collection)
 	return err
 }
@@ -52,7 +52,7 @@ func (device *Device) Exists(ctx context.Context) (bool, error) {
 }
 
 func CountDevice(ctx context.Context, filter interface{}) (int64, error) {
-	collection := helpers.GetCollection(config.UserDatabaseName, deviceCollectionName)
+	collection := services.GetCollection(config.UserDatabaseName, deviceCollectionName)
 	count, err := collection.CountDocuments(ctx, filter)
 	return count, err
 }
@@ -80,7 +80,7 @@ func ExtractAndCreateDevice(ctx context.Context, r *http.Request, userId string)
 func FindDevice(ctx context.Context, deviceId string) (*Device, error) {
 	var device Device
 
-	collection := helpers.GetCollection(config.UserDatabaseName, intentsCollectionName)
+	collection := services.GetCollection(config.UserDatabaseName, intentsCollectionName)
 	err := collection.FindOne(ctx, bson.M{"id": deviceId}).Decode(&device)
 
 	return &device, err

@@ -4,7 +4,7 @@ import (
 	"context"
 	"github.com/google/uuid"
 	"github.com/mundanelizard/koyi/server/config"
-	"github.com/mundanelizard/koyi/server/helpers"
+	"github.com/mundanelizard/koyi/server/services"
 	"log"
 	"time"
 )
@@ -36,7 +36,7 @@ func NewHistory(userId, field string, value interface{}) *History {
 
 func (h *History) Create(ctx context.Context) {
 	h.Timestamp = time.Now()
-	collection := helpers.GetCollection(config.UserDatabaseName, historyCollectionName)
+	collection := services.GetCollection(config.UserDatabaseName, historyCollectionName)
 	_, err := collection.InsertOne(ctx, h)
 
 	if err != nil {

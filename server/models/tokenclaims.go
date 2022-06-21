@@ -4,7 +4,7 @@ import (
 	"context"
 	"github.com/google/uuid"
 	"github.com/mundanelizard/koyi/server/config"
-	"github.com/mundanelizard/koyi/server/helpers"
+	"github.com/mundanelizard/koyi/server/services"
 	"time"
 )
 
@@ -31,7 +31,7 @@ func (tc *TokenClaims) Create(ctx context.Context) error {
 	id := uuid.New().String()
 	tc.ID = &id
 
-	collection := helpers.GetCollection(config.UserDatabaseName, tokenClaimsCollectionName)
+	collection := services.GetCollection(config.UserDatabaseName, tokenClaimsCollectionName)
 	_, err := collection.InsertOne(ctx, tc)
 
 	return err

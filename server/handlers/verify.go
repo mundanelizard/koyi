@@ -5,6 +5,7 @@ import (
 	"errors"
 	"github.com/gin-gonic/gin"
 	"github.com/mundanelizard/koyi/server/config"
+	"github.com/mundanelizard/koyi/server/handlers/middlewares"
 	"github.com/mundanelizard/koyi/server/models"
 	"go.mongodb.org/mongo-driver/bson"
 	"log"

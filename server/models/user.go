@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"github.com/google/uuid"
 	"github.com/mundanelizard/koyi/server/config"
-	"github.com/mundanelizard/koyi/server/helpers"
+	"github.com/mundanelizard/koyi/server/services"
 	"go.mongodb.org/mongo-driver/bson"
+	"golang.org/x/crypto/bcrypt"
+	"log"
 	"time"
 )
 
@@ -30,7 +32,7 @@ type User struct {
 }
 
 func CountUser(ctx context.Context, filter interface{}) (int64, error) {
-	collection := helpers.GetCollection(config.UserDatabaseName, userCollectionName)
+	collection := services.GetCollection(config.UserDatabaseName, userCollectionName)
 	count, err := collection.CountDocuments(ctx, filter)
 	return count, err
 }
@@ -38,16 +40,17 @@ func CountUser(ctx context.Context, filter interface{}) (int64, error) {
 func (user *User) Create(ctx context.Context) error {
 	exists, err := user.exists(ctx)
 
-	if err != nil {
-		return err
-	}
-
-	if exists {
+	if exists || err != nil {
 		return errors.New("user already exits")
 	}
 
+	if user.Password == nil {
+		return errors.New("user password error")
+	}
+
 	user.fillDefaults()
-	collection := helpers.GetCollection(config.UserDatabaseName, userCollectionName)
+	user.Password = hashPassword(*user.Password)
+	collection := services.GetCollection(config.UserDatabaseName, userCollectionName)
 
 	_, err = collection.InsertOne(ctx, user)
 
@@ -63,7 +66,7 @@ func (user *User) Create(ctx context.Context) error {
 func FindUser(ctx context.Context, filter bson.M) (*User, error) {
 	var user User
 
-	collection := helpers.GetCollection(config.UserDatabaseName, intentsCollectionName)
+	collection := services.GetCollection(config.UserDatabaseName, intentsCollectionName)
 	err := collection.FindOne(ctx, filter).Decode(&user)
 
 	return &user, err
@@ -72,15 +75,25 @@ func FindUser(ctx context.Context, filter bson.M) (*User, error) {
 func FindUserById(ctx context.Context, userId string) (*User, error) {
 	var user User
 
-	collection := helpers.GetCollection(config.UserDatabaseName, intentsCollectionName)
+	collection := services.GetCollection(config.UserDatabaseName, intentsCollectionName)
 	err := collection.FindOne(ctx, bson.M{"id": userId}).Decode(&user)
 
 	return &user, err
 }
 
 func (user *User) Update(ctx context.Context, m bson.M) error {
-	collection := helpers.GetCollection(config.UserDatabaseName, intentsCollectionName)
+	collection := services.GetCollection(config.UserDatabaseName, intentsCollectionName)
 	return collection.FindOneAndUpdate(ctx, bson.M{"id": user.ID}, m).Decode(user)
+}
+
+func (user *User) VerifyPassword(password string) bool {
+	err := bcrypt.CompareHashAndPassword([]byte(*user.Password), []byte(password))
+
+	if err != nil {
+		return false
+	}
+
+	return true
 }
 
 func (user *User) CreateClaims(ctx context.Context, deviceId string) (*TokenClaims, error) {
@@ -221,4 +234,16 @@ func (user *User) exists(ctx context.Context) (bool, error) {
 	}
 
 	return false, nil
+}
+
+func hashPassword(password string) *string {
+	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	result := string(bytes)
+
+	return &result
 }

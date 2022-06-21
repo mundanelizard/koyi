@@ -15,17 +15,19 @@ const (
 )
 
 type Token struct {
-	ID       *string     `json:"id"`
+	UserId   *string     `json:"id"`
 	Metadata interface{} `json:"metadata"`
 	jwt.StandardClaims
 }
+
+// todo => update to public - private key set up (RSA256)
 
 func NewToken(tokenType string, user *User) (*string, error) {
 	secret := getUserClaimSecret(tokenType)
 	duration := getUserClaimDuration(tokenType)
 
 	claim := &Token{
-		ID:       user.ID,
+		UserId:   user.ID,
 		Metadata: user.Metadata,
 		StandardClaims: jwt.StandardClaims{
 			Issuer:   config.JWTIssuerName,
@@ -48,6 +50,31 @@ func NewToken(tokenType string, user *User) (*string, error) {
 	}
 
 	return &token, err
+}
+
+func DecodeToken(tokenType string, token *string) (*Token, error) {
+	parsedToken, err := jwt.ParseWithClaims(
+		*token,
+		&Token{},
+		func(token *jwt.Token) (interface{}, error) {
+			return getUserClaimSecret(tokenType), nil
+		},
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	claims, ok := parsedToken.Claims.(*Token)
+	if !ok {
+		return nil, errors.New("unable retrieve token")
+	}
+
+	if claims.ExpiresAt < time.Now().Local().Unix() {
+		return nil, errors.New("token is expired")
+	}
+
+	return claims, nil
 }
 
 func getUserClaimSecret(claimType string) string {

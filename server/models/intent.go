@@ -5,7 +5,7 @@ import (
 	"context"
 	"github.com/google/uuid"
 	"github.com/mundanelizard/koyi/server/config"
-	"github.com/mundanelizard/koyi/server/helpers"
+	"github.com/mundanelizard/koyi/server/services"
 	"go.mongodb.org/mongo-driver/bson"
 	"html/template"
 	"time"
@@ -45,14 +45,14 @@ func (i *Intent) Create(ctx context.Context) error {
 	i.ID = uuid.New().String()
 	i.Fulfilled = false
 
-	collection := helpers.GetCollection(config.UserDatabaseName, intentsCollectionName)
+	collection := services.GetCollection(config.UserDatabaseName, intentsCollectionName)
 	_, err := collection.InsertOne(ctx, i)
 
 	return err
 }
 
 func NewIntent(userId, action string, generateActionUrl func(intentId, actionCode string) string) *Intent {
-	actionCode := helpers.RandomIntegers(6)
+	actionCode := services.RandomIntegers(6)
 	intentId := uuid.New().String()
 
 	intent := &Intent{
@@ -74,7 +74,7 @@ func NewIntent(userId, action string, generateActionUrl func(intentId, actionCod
 func FindIntent(ctx context.Context, intentId, intentCode string) (*Intent, error) {
 	var intent Intent
 
-	collection := helpers.GetCollection(config.UserDatabaseName, intentsCollectionName)
+	collection := services.GetCollection(config.UserDatabaseName, intentsCollectionName)
 	err := collection.FindOne(ctx, bson.M{"id": intentId, "actionCode": intentCode}).Decode(&intent)
 
 	return &intent, err
@@ -85,7 +85,7 @@ func (i *Intent) IsExpired() bool {
 }
 
 func (i *Intent) Update(ctx context.Context, m bson.M) error {
-	collection := helpers.GetCollection(config.UserDatabaseName, intentsCollectionName)
+	collection := services.GetCollection(config.UserDatabaseName, intentsCollectionName)
 	return collection.FindOneAndUpdate(ctx, bson.M{"id": i.ID}, m).Decode(i)
 }
 
@@ -94,7 +94,7 @@ type templateData struct {
 	User   *User
 }
 
-func getEmail(data *templateData) (helpers.Sendable, error) {
+func getEmail(data *templateData) (services.Sendable, error) {
 	var textBuffer *bytes.Buffer
 	var htmlBuffer *bytes.Buffer
 	var subject string
@@ -113,10 +113,10 @@ func getEmail(data *templateData) (helpers.Sendable, error) {
 	text := textBuffer.String()
 	html := htmlBuffer.String()
 
-	return helpers.NewMail(*data.User.Email, subject, &text, &html), err
+	return services.NewMail(*data.User.Email, subject, &text, &html), err
 }
 
-func getSms(data *templateData) (helpers.Sendable, error) {
+func getSms(data *templateData) (services.Sendable, error) {
 	var buffer *bytes.Buffer
 	var err error
 
@@ -130,5 +130,5 @@ func getSms(data *templateData) (helpers.Sendable, error) {
 
 	text := buffer.String()
 
-	return helpers.NewSms(&text), err
+	return services.NewSms(&text), err
 }

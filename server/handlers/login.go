@@ -5,7 +5,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/mundanelizard/koyi/server/config"
 	"github.com/mundanelizard/koyi/server/handlers/middlewares"
-	"github.com/mundanelizard/koyi/server/helpers"
 	"github.com/mundanelizard/koyi/server/models"
 	"go.mongodb.org/mongo-driver/bson"
 	"log"
@@ -52,7 +51,7 @@ func signIn(c *gin.Context, user *models.User, password string) {
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 100)
 	defer cancel()
 
-	ok := helpers.VerifyHash(&password, user.Password)
+	ok := user.VerifyPassword(password)
 
 	if !ok {
 		log.Println("wrong password")
