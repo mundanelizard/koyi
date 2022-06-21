@@ -6,14 +6,15 @@ import (
 	"fmt"
 	"github.com/google/uuid"
 	"github.com/mundanelizard/koyi/server/config"
-	"github.com/mundanelizard/koyi/server/helpers"
+	"github.com/mundanelizard/koyi/server/services"
 	"go.mongodb.org/mongo-driver/bson"
+	"golang.org/x/crypto/bcrypt"
+	"log"
 	"time"
 )
 
 const (
-	userCollectionName        = "users"
-	tokenClaimsCollectionName = "user-tokens"
+	userCollectionName = "users"
 )
 
 type User struct {
@@ -30,7 +31,7 @@ type User struct {
 }
 
 func CountUser(ctx context.Context, filter interface{}) (int64, error) {
-	collection := helpers.GetCollection(config.UserDatabaseName, userCollectionName)
+	collection := services.GetCollection(config.UserDatabaseName, userCollectionName)
 	count, err := collection.CountDocuments(ctx, filter)
 	return count, err
 }
@@ -38,16 +39,17 @@ func CountUser(ctx context.Context, filter interface{}) (int64, error) {
 func (user *User) Create(ctx context.Context) error {
 	exists, err := user.exists(ctx)
 
-	if err != nil {
-		return err
-	}
-
-	if exists {
+	if exists || err != nil {
 		return errors.New("user already exits")
 	}
 
+	if user.Password == nil {
+		return errors.New("user password error")
+	}
+
 	user.fillDefaults()
-	collection := helpers.GetCollection(config.UserDatabaseName, userCollectionName)
+	user.Password = hashPassword(*user.Password)
+	collection := services.GetCollection(config.UserDatabaseName, userCollectionName)
 
 	_, err = collection.InsertOne(ctx, user)
 
@@ -60,23 +62,45 @@ func (user *User) Create(ctx context.Context) error {
 	return nil
 }
 
-func FindUser(ctx context.Context, filter bson.M) (*User, error) {
+func FindUser(ctx context.Context, filter interface{}) (*User, error) {
+	var user User
 
-	return nil, nil
+	collection := services.GetCollection(config.UserDatabaseName, intentsCollectionName)
+	err := collection.FindOne(ctx, filter).Decode(&user)
+
+	return &user, err
 }
 
-func (user *User) CreateClaims(ctx context.Context, deviceId string) (*TokenClaims, error) {
-	accessClaim, accessToken, err := NewUserClaim("access", user)
+func FindUserById(ctx context.Context, userId string) (*User, error) {
+	var user User
+
+	collection := services.GetCollection(config.UserDatabaseName, intentsCollectionName)
+	err := collection.FindOne(ctx, bson.M{"id": userId}).Decode(&user)
+
+	return &user, err
+}
+
+func (user *User) Update(ctx context.Context, m bson.M) error {
+	collection := services.GetCollection(config.UserDatabaseName, intentsCollectionName)
+	return collection.FindOneAndUpdate(ctx, bson.M{"id": user.ID}, m).Decode(user)
+}
+
+func (user *User) VerifyPassword(password string) bool {
+	err := bcrypt.CompareHashAndPassword([]byte(*user.Password), []byte(password))
+
 	if err != nil {
-		return nil, err
+		return false
 	}
 
-	refreshClaim, refreshToken, err := NewUserClaim("refresh", user)
-	if err != nil {
-		return nil, err
-	}
+	return true
+}
 
-	claims := NewTokenClaim(accessToken, refreshToken, refreshClaim, accessClaim, &deviceId)
+func (user *User) CreateTokens(ctx context.Context, deviceId string) (*Tokens, error) {
+	claims, err := NewTokens(deviceId, user)
+
+	if err != nil {
+		return claims, err
+	}
 
 	err = claims.Create(ctx)
 
@@ -90,7 +114,7 @@ func (user *User) CreateClaims(ctx context.Context, deviceId string) (*TokenClai
 func (user *User) SendVerificationMail(ctx context.Context) error {
 	intent := NewIntent(
 		*user.ID,
-		emailVerificationIntent,
+		EmailVerificationIntent,
 		func(intentId, actionId string) string {
 			return fmt.Sprintf(
 				config.ServerDomain+"/v1/auth/signup/verify/%s/%s",
@@ -117,7 +141,7 @@ func (user *User) SendVerificationMail(ctx context.Context) error {
 func (user *User) SendVerificationSms(ctx context.Context) error {
 	intent := NewIntent(
 		*user.ID,
-		phoneNumberVerificationIntent,
+		PhoneNumberVerificationIntent,
 		func(intentId, actionId string) string {
 			return fmt.Sprintf(
 				config.ServerDomain+"/v1/auth/signup/verify/%s/%s",
@@ -163,14 +187,18 @@ func (user *User) fillDefaults() {
 
 // createHistory creates an EmailHistory, PasswordHistory and PhoneNumberHistory for a User.
 func (user *User) createHistory(ctx context.Context) {
-	eh := NewEmailHistory(user.ID, user.Email)
-	go eh.Create(ctx)
+	ph := NewHistory(*user.ID, passwordFieldName, *user.Password)
+	ph.Create(ctx)
 
-	ph := NewPasswordHistory(user.ID, user.Password)
-	go ph.Create(ctx)
+	if user.Email != nil {
+		eh := NewHistory(*user.ID, emailFieldName, *user.Email)
+		eh.Create(ctx)
+	}
 
-	pnh := NewPhoneNumberHistory(user.ID, user.PhoneNumber)
-	go pnh.Create(ctx)
+	if user.PhoneNumber != nil {
+		pnh := NewHistory(*user.ID, phoneNumberFieldName, user.PhoneNumber)
+		pnh.Create(ctx)
+	}
 }
 
 // exists checks if a user exists in the database.
@@ -179,13 +207,9 @@ func (user *User) exists(ctx context.Context) (bool, error) {
 	var err error
 
 	if user.Email != nil {
-		count, err = CountUser(ctx, map[string]string{"email": *user.Email})
+		count, err = CountUser(ctx, bson.M{"email": *user.Email})
 	} else if user.PhoneNumber != nil {
-		count, err = CountUser(ctx,
-			bson.M{
-				"phoneNumber.countryCode":      user.PhoneNumber.CountryCode,
-				"phoneNumber.subscriberNumber": user.PhoneNumber.SubscriberNumber,
-			})
+		count, err = CountUser(ctx, bson.M{"phoneNumber": user.PhoneNumber})
 	} else {
 		return false, errors.New("something terribly wrong happened: the user doesn't have an email or phone number")
 	}
@@ -199,4 +223,16 @@ func (user *User) exists(ctx context.Context) (bool, error) {
 	}
 
 	return false, nil
+}
+
+func hashPassword(password string) *string {
+	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	result := string(bytes)
+
+	return &result
 }

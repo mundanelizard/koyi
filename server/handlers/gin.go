@@ -10,7 +10,7 @@ import (
 )
 
 func AbortGinWithAuth(c *gin.Context, ctx context.Context, user *models.User, deviceId string) {
-	claims, err := user.CreateClaims(ctx, deviceId)
+	claims, err := user.CreateTokens(ctx, deviceId)
 
 	if err != nil {
 		log.Println(err)

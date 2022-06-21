@@ -5,7 +5,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/mundanelizard/koyi/server/config"
 	"github.com/mundanelizard/koyi/server/handlers/middlewares"
-	"github.com/mundanelizard/koyi/server/helpers"
 	"github.com/mundanelizard/koyi/server/models"
 	"log"
 	"net/http"
@@ -21,7 +20,7 @@ func emailSignUpHandler(c *gin.Context) {
 
 	user := &models.User{
 		Email:    &email,
-		Password: helpers.HashString(password),
+		Password: &password,
 		Metadata: &metadata,
 	}
 
@@ -39,13 +38,13 @@ func emailSignUpHandler(c *gin.Context) {
 		log.Println("SEND-VERIFICATION-EMAIL-ERROR: ", err)
 	}
 
-	device := models.ExtractDevice(c.Request, user.ID)
-	AbortGinWithAuth(c, ctx, user, *device.ID)
-
-	err = device.Create(ctx)
-
-	if err != nil {
-		log.Println("DEVICE-CREATION-ERROR: ", err)
+	// todo => remove the duplications
+	if config.CreateTokenOnSignUp {
+		device := models.ExtractAndCreateDevice(ctx, c.Request, *user.ID)
+		AbortGinWithAuth(c, ctx, user, device.ID)
+	} else {
+		go models.ExtractAndCreateDevice(ctx, c.Request, *user.ID)
+		c.AbortWithStatusJSON(http.StatusCreated, user)
 	}
 }
 
@@ -53,18 +52,14 @@ func phoneNumberSignUpHandler(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), config.AverageServerTimeout)
 	defer cancel()
 
-	countryCode := c.GetString("countryCode")
-	subscriberNumber := c.GetString("subscriberNumber")
+	phoneNumber, _ := c.Get("phoneNumber")
 	password := c.GetString("password")
 	metadata, _ := c.Get("metadata")
 
 	user := &models.User{
-		PhoneNumber: &models.PhoneNumber{
-			CountryCode:      countryCode,
-			SubscriberNumber: subscriberNumber,
-		},
-		Password: helpers.HashString(password),
-		Metadata: &metadata,
+		PhoneNumber: phoneNumber.(*models.PhoneNumber),
+		Password:    &password,
+		Metadata:    &metadata,
 	}
 
 	err := user.Create(ctx)
@@ -81,19 +76,21 @@ func phoneNumberSignUpHandler(c *gin.Context) {
 		log.Println("SEND-VERIFICATION-SMS-ERROR: ", err)
 	}
 
-	device := models.ExtractDevice(c.Request, user.ID)
-	AbortGinWithAuth(c, ctx, user, *device.ID)
-
-	err = device.Create(ctx)
-
-	if err != nil {
-		log.Println("DEVICE-CREATION-ERROR: ", err)
+	// todo => remove the duplications
+	if config.CreateTokenOnSignUp {
+		device := models.ExtractAndCreateDevice(ctx, c.Request, *user.ID)
+		AbortGinWithAuth(c, ctx, user, device.ID)
+	} else {
+		go models.ExtractAndCreateDevice(ctx, c.Request, *user.ID)
+		c.AbortWithStatusJSON(http.StatusCreated, user)
 	}
 }
 
 func CreateSignUpRoutes(router *gin.RouterGroup) {
+	// Add the ability to assign roles to users.
+	// If the user is coming from 'web' you can restrict his roles.
 	group := router.Group("/auth/signup")
 
-	group.POST("/email", middlewares.ValidateEmailSignUp, emailSignUpHandler)
-	group.POST("/phone", middlewares.ValidatePhoneNumberSignUp, phoneNumberSignUpHandler)
+	group.POST("/email", middlewares.EmailSignUpValidator, emailSignUpHandler)
+	group.POST("/phone", middlewares.PhoneNumberSignUpValidator, phoneNumberSignUpHandler)
 }

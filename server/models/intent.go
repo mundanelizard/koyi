@@ -5,17 +5,19 @@ import (
 	"context"
 	"github.com/google/uuid"
 	"github.com/mundanelizard/koyi/server/config"
-	"github.com/mundanelizard/koyi/server/helpers"
+	"github.com/mundanelizard/koyi/server/services"
+	"go.mongodb.org/mongo-driver/bson"
 	"html/template"
+	"time"
 )
 
 const (
 	intentsCollectionName = "intents"
 
-	// Intents
-	accountVerificationIntent     = "verification"
-	emailVerificationIntent       = "verification:email"
-	phoneNumberVerificationIntent = "verification:phone-number"
+	// -- intent types
+	AccountVerificationIntent     = "verification"
+	EmailVerificationIntent       = "verification:email"
+	PhoneNumberVerificationIntent = "verification:phone-number"
 )
 
 var (
@@ -30,24 +32,27 @@ type Intent struct {
 
 	Action string `json:"action" bson:"action"` // reset-password
 
-	ActionCode string `json:"-" bson:"-"`
-	ActionUrl  string `json:"-" bson:"-"`
+	ActionCode string `json:"-" bson:"actionCode"`
+	ActionUrl  string `json:"-" bson:"actionUrl"`
 
-	Fulfilled bool `json:"fulfilled" bson:"fulfilled"`
+	Fulfilled bool      `json:"fulfilled" bson:"fulfilled"`
+	ExpireAt  time.Time `json:"expireAt" bson:"expireAt"`
+	CreatedAt time.Time `json:"createdAt" bson:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt" bson:"updatedAt"`
 }
 
 func (i *Intent) Create(ctx context.Context) error {
 	i.ID = uuid.New().String()
 	i.Fulfilled = false
 
-	collection := helpers.GetCollection(config.UserDatabaseName, intentsCollectionName)
+	collection := services.GetCollection(config.UserDatabaseName, intentsCollectionName)
 	_, err := collection.InsertOne(ctx, i)
 
 	return err
 }
 
 func NewIntent(userId, action string, generateActionUrl func(intentId, actionCode string) string) *Intent {
-	actionCode := helpers.RandomIntegers(6)
+	actionCode := services.RandomIntegers(6)
 	intentId := uuid.New().String()
 
 	intent := &Intent{
@@ -58,9 +63,30 @@ func NewIntent(userId, action string, generateActionUrl func(intentId, actionCod
 		ActionUrl:  generateActionUrl(intentId, actionCode),
 		Fulfilled:  false,
 		ActionCode: actionCode,
+		ExpireAt:   time.Now().Local().Add(config.IntentDuration),
+		CreatedAt:  time.Now(),
+		UpdatedAt:  time.Now(),
 	}
 
 	return intent
+}
+
+func FindIntent(ctx context.Context, intentId, intentCode string) (*Intent, error) {
+	var intent Intent
+
+	collection := services.GetCollection(config.UserDatabaseName, intentsCollectionName)
+	err := collection.FindOne(ctx, bson.M{"id": intentId, "actionCode": intentCode}).Decode(&intent)
+
+	return &intent, err
+}
+
+func (i *Intent) IsExpired() bool {
+	return i.ExpireAt.Before(time.Now())
+}
+
+func (i *Intent) Update(ctx context.Context, m bson.M) error {
+	collection := services.GetCollection(config.UserDatabaseName, intentsCollectionName)
+	return collection.FindOneAndUpdate(ctx, bson.M{"id": i.ID}, m).Decode(i)
 }
 
 type templateData struct {
@@ -68,13 +94,13 @@ type templateData struct {
 	User   *User
 }
 
-func getEmail(data *templateData) (helpers.Sendable, error) {
+func getEmail(data *templateData) (services.Sendable, error) {
 	var textBuffer *bytes.Buffer
 	var htmlBuffer *bytes.Buffer
 	var subject string
 	var err error
 
-	if data.Intent.Action == accountVerificationIntent {
+	if data.Intent.Action == AccountVerificationIntent {
 		subject = "Verification Email"
 		err = htmlEmailVerificationTemplate.Execute(htmlBuffer, data)
 		err = textEmailVerificationTemplate.Execute(textBuffer, data)
@@ -87,14 +113,14 @@ func getEmail(data *templateData) (helpers.Sendable, error) {
 	text := textBuffer.String()
 	html := htmlBuffer.String()
 
-	return helpers.NewMail(*data.User.Email, subject, &text, &html), err
+	return services.NewMail(*data.User.Email, subject, &text, &html), err
 }
 
-func getSms(data *templateData) (helpers.Sendable, error) {
+func getSms(data *templateData) (services.Sendable, error) {
 	var buffer *bytes.Buffer
 	var err error
 
-	if data.Intent.Action == accountVerificationIntent {
+	if data.Intent.Action == AccountVerificationIntent {
 		err = smsVerificationTemplate.Execute(buffer, data)
 	}
 
@@ -104,5 +130,5 @@ func getSms(data *templateData) (helpers.Sendable, error) {
 
 	text := buffer.String()
 
-	return helpers.NewSms(&text), err
+	return services.NewSms(&text), err
 }

@@ -6,13 +6,15 @@ import (
 	"log"
 )
 
-func createVersion1Handlers(engine *gin.Engine) {
+func createVersion1Handlers(engine *gin.Engine) *gin.Engine {
 	router := engine.Group("v1")
-	handlers.CreateSignUpRoutes(router)
-	handlers.CreateVerificationRoutes(router)
-	//createAuthorizationRoutes(router)
-	//createAdminRoutes(router)
-	//createMFARoutes(router)
+	handlers.CreateSignUpRoutes(router)       // give users roles on signup
+	handlers.CreateVerificationRoutes(router) // use this for otp to
+	handlers.CreateSignInRoutes(router)
+	// handlers.CreatePasswordRoutes(router)
+	// handlers.CreateMetadataRoutes(router)
+	// handlers.CreateUserRoutes(router)
+	return engine
 }
 
 // SetUpServer sets up the server for handling all post request.
@@ -22,9 +24,7 @@ func setUpServer() *gin.Engine {
 	*/
 	engine := gin.Default()
 
-	createVersion1Handlers(engine)
-
-	return engine
+	return createVersion1Handlers(engine)
 }
 
 func main() {
@@ -34,27 +34,6 @@ func main() {
 		log.Fatalf("Finally, there's an error %s", err)
 	}
 }
-
-/*
-func createGeneralUserRoutes(router Groupable) {
-	group := router.Group("/who")
-
-	group.POST("/logout", noOperationHandler)
-	group.POST("/reset", noOperationHandler) // { type: "", id: "" }
-
-	group.PATCH("/metadata", noOperationHandler)
-	group.PUT("/password", noOperationHandler) // { type: "", newPassword: "", oldPassword: "" }
-
-	group.GET("/", noOperationHandler)
-	group.DELETE("/", noOperationHandler)
-}
-
-func createAuthorizationRoutes(router Groupable) {
-	group := router.Group("/what", noOperationHandler)
-	group.GET("/roles", noOperationHandler)
-	group.GET("/", noOperationHandler)
-}
-*/
 
 /*
 func createAdminBaseRoutes(router Groupable) {
@@ -86,37 +65,5 @@ func createAdminSettingsRoutes(router Groupable) {
 
 	group.GET("/settings/sms", noOperationHandler)
 	group.POST("/settings/sms", noOperationHandler)
-}
-
-func createLoginInRoutes(router Groupable) {
-	group := router.Group("/who/login")
-
-	group.POST("/phone", middlewares.ValidatePhoneNumberSignIn, handlers.PhoneNumberSignInHandler)
-	group.POST("/email", middlewares.ValidateEmailSignIn, handlers.EmailSignInHandler)
-
-	group.POST("/email/totp", noOperationHandler) // logs the user in using email and otp
-	group.POST("/phone/totp", noOperationHandler) // logs the user in using phone number and otp
-}
-
-func createMFARoutes(router Groupable) {
-	group := router.Group("/mfa")
-
-	group.POST("/totp", noOperationHandler) // email and phone number
-	group.GET("/otp/verify", noOperationHandler)
-}
-*/
-
-/*
-// createAdminRoutes handles the application administration requests.
-func createAdminRoutes(router Groupable) {
-	// Add authorized domains feature
-	createAdminBaseRoutes(router)
-	createAdminSettingsRoutes(router)
-}
-
-// noOperationHandler handle the absence of a route implementation.
-func noOperationHandler(context *gin.Context) {
-	fmt.Println(context)
-	context.AbortWithStatusJSON(http.StatusOK, map[string]string{"Ping": "Pong"})
 }
 */
