@@ -18,10 +18,6 @@ so I can't extend the solutions for niche projects
 __Why don't you just use blah blah, it's opensource?__
 The authors of these solutions are really smart, which means I have to spend a lot of time trying to understand the codebase.
 
-__Why is your go code so terrible?__
-
-This is my greenfield large scale project using go.
-
 __What this project isn't?__
 
 - A unique solution to a problem
